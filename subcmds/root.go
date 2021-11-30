@@ -7,6 +7,7 @@ import (
 
 	"github.com/rmrfslashbin/ssmparams"
 	"github.com/rmrfslashbin/tndx/pkg/database"
+	"github.com/rmrfslashbin/tndx/pkg/queue"
 	"github.com/rmrfslashbin/tndx/pkg/service"
 	"github.com/rmrfslashbin/tndx/pkg/storage"
 	"github.com/sirupsen/logrus"
@@ -33,6 +34,7 @@ type services struct {
 	twitterClient *service.Config
 	storage       storage.StorageDriver
 	db            database.DatabaseDriver
+	queue         *queue.Config
 }
 
 var (
@@ -151,6 +153,17 @@ var (
 			}
 		},
 	}
+
+	cmdEntities = &cobra.Command{
+		Use:   "entities",
+		Short: "fetch entities",
+		Run: func(cmd *cobra.Command, args []string) {
+			if err := RunEntitiesCmd(); err != nil {
+				log.Fatal(err)
+				os.Exit(1)
+			}
+		},
+	}
 )
 
 // init sets up the CLI and flags
@@ -190,20 +203,9 @@ func init() {
 		cmdFollowers,
 		cmdFavorites,
 		cmdTimeline,
+		cmdEntities,
 	)
 }
-
-/*const (
-	TWITTER_API_KEY_PARAM       = "/tndx/twitter/tndx/api/key"
-	TWITTER_API_SECRET_PARAM    = "/tndx/twitter/tndx/api/secret"
-	TWITTER_ACCESS_SECRET_PARAM = "/tndx/twitter/tndx/rmrfslashbin/access/secret"
-	TWITTER_ACCESS_TOKEN_PARAM  = "/tndx/twitter/tndx/rmrfslashbin/access/token"
-	TNDX_S3_BUCKET_PARAM        = "/tndx/s3/bucket"
-	TNDX_S3_REGION_PARAM        = "/tndx/s3/region"
-	TNDX_DDB_TABLE_PARAM        = "/tndx/ddb/table"
-	TNDX_DDB_REGION_PARAM       = "/tndx/ddb/region"
-)
-*/
 
 func setup() {
 	viper.SetConfigFile(flags.dotenvPath)
@@ -219,6 +221,7 @@ func setup() {
 	s3Region, _ := viper.Get("TNDX_S3_REGION_PARAM").(string)
 	ddbTable, _ := viper.Get("TNDX_DDB_TABLE_PARAM").(string)
 	ddbRegion, _ := viper.Get("TNDX_DDB_REGION_PARAM").(string)
+	// sqsEntitiesURL, _ := viper.Get("TNDX_SQS_ENTITIES_URL_PARAM").(string)
 
 	paramFetcher, err := ssmparams.New()
 	if err != nil {
@@ -259,6 +262,7 @@ func setup() {
 	ch_Twitter_API_Key := paramFetcher.GetParam(twitterApiKey)
 	ch_AWS_S3_Bucket := paramFetcher.GetParam(s3Bucket)
 	ch_AWS_S3_Region := paramFetcher.GetParam(s3Region)
+	// ch_SQS_Entities_URL := paramFetcher.GetParam(sqsEntitiesURL)
 
 	// Wait for the async operations to finsih.
 	accessSecret := <-ch_Twitter_Access_Secret
@@ -267,6 +271,7 @@ func setup() {
 	consumerKey := <-ch_Twitter_API_Key
 	tndxS3Bucket := <-ch_AWS_S3_Bucket
 	tndxS3Region := <-ch_AWS_S3_Region
+	// sqsURL := <-ch_SQS_Entities_URL
 
 	// Check for errors.
 	if accessSecret.Err != nil {
@@ -302,6 +307,8 @@ func setup() {
 		)
 	}
 	svc.storage = storageDriver
+
+	// svc.queue = queue.NewSQS(queue.SetLogger(log), queue.SetSQSURL(*sqsURL.ParameterOutput.Parameter.Value))
 
 	svc.twitterClient = service.New(
 		service.SetAccessSecret(*accessSecret.ParameterOutput.Parameter.Value),

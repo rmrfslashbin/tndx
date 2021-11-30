@@ -30,6 +30,25 @@ type Config struct {
 	client         *twitter.Client
 }
 
+// New is a factory function for creating a new Config
+func New(opts ...func(*Config)) *Config {
+	config := &Config{}
+
+	// apply the list of options to Config
+	for _, opt := range opts {
+		opt(config)
+	}
+
+	oauthConfig := oauth1.NewConfig(config.consumerKey, config.consumerSecret)
+	oauthToken := oauth1.NewToken(config.accessToken, config.accessSecret)
+	// http.Client will automatically authorize Requests
+	httpClient := oauthConfig.Client(oauth1.NoContext, oauthToken)
+
+	// Twitter client
+	config.client = twitter.NewClient(httpClient)
+	return config
+}
+
 func SetAccessSecret(accessSecret string) Option {
 	return func(config *Config) {
 		config.accessSecret = accessSecret
@@ -58,23 +77,4 @@ func SetLogger(log *logrus.Logger) Option {
 	return func(config *Config) {
 		config.log = log
 	}
-}
-
-// New is a factory function for creating a new Config
-func New(opts ...func(*Config)) *Config {
-	config := &Config{}
-
-	// apply the list of options to Config
-	for _, opt := range opts {
-		opt(config)
-	}
-
-	oauthConfig := oauth1.NewConfig(config.consumerKey, config.consumerSecret)
-	oauthToken := oauth1.NewToken(config.accessToken, config.accessSecret)
-	// http.Client will automatically authorize Requests
-	httpClient := oauthConfig.Client(oauth1.NoContext, oauthToken)
-
-	// Twitter client
-	config.client = twitter.NewClient(httpClient)
-	return config
 }
