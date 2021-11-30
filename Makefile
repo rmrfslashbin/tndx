@@ -10,8 +10,8 @@ SHA_CMD := $(shell { command -v sha256sum || command -v shasum; } 2>/dev/null)
 build:
 	@echo "Building $(PROJECT)"
 	@if [ ! -d "./bin" ]; then mkdir bin; fi
-	@go build -o bin/$(PROJECT)-$(SYSTEM)-$(MACHINE) ./...
-	# @$(SHA_CMD) bin/$(PROJECT)-$(SYSTEM)-$(MACHINE) | sed 's/bin\///' > bin/$(PROJECT)-$(SYSTEM)-$(MACHINE).sha256
+	@go build -o bin/tndx-$(SYSTEM)-$(MACHINE) cmd/tndx/main.go
+	@$(SHA_CMD) bin/tndx-$(SYSTEM)-$(MACHINE) | sed 's/bin\///' > bin/tndx-$(SYSTEM)-$(MACHINE).sha256
 
 install:
 	@echo "Installing $(PROJECT)"
