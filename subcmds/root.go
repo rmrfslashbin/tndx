@@ -44,6 +44,7 @@ var (
 
 	// rootCmd is the Viper root command
 	RootCmd = &cobra.Command{
+		Version: "v2021.11.30-01",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			// Set the log level
 			switch flags.loglevel {
@@ -61,41 +62,7 @@ var (
 				log.SetLevel(logrus.InfoLevel)
 			}
 
-			flags.dotenvPath = path.Clean(flags.dotenvPath)
-			if _, err := os.Stat(flags.dotenvPath); err != nil {
-				log.Fatal("Unable to find dotenv file")
-				os.Exit(1)
-			}
-
-			validStorage := map[string]bool{
-				"local": true,
-				"s3":    true,
-			}
-
-			if _, ok := validStorage[flags.storageDriver]; !ok {
-				cmd.Usage()
-				log.Fatal("Invalid or missing storage driver. Should be 'local' or 's3'")
-				os.Exit(1)
-			}
-
-			validDatabase := map[string]bool{
-				"sqlite": true,
-				"ddb":    true,
-			}
-
-			if _, ok := validDatabase[flags.databaseDriver]; !ok {
-				cmd.Usage()
-				log.Fatal("Invalid or missing database driver. Should be 'sqlite' or 'ddb'")
-				os.Exit(1)
-			}
-
-			if flags.userid == 0 && flags.screenname == "" {
-				cmd.Usage()
-				log.Fatal("Missing userid or screenname")
-				os.Exit(1)
-			}
-
-			setup()
+			setup(cmd)
 		},
 	}
 
@@ -207,7 +174,41 @@ func init() {
 	)
 }
 
-func setup() {
+func setup(cmd *cobra.Command) {
+	flags.dotenvPath = path.Clean(flags.dotenvPath)
+	if _, err := os.Stat(flags.dotenvPath); err != nil {
+		log.Fatal("Unable to find dotenv file")
+		os.Exit(1)
+	}
+
+	validStorage := map[string]bool{
+		"local": true,
+		"s3":    true,
+	}
+
+	if _, ok := validStorage[flags.storageDriver]; !ok {
+		cmd.Usage()
+		log.Fatal("Invalid or missing storage driver. Should be 'local' or 's3'")
+		os.Exit(1)
+	}
+
+	validDatabase := map[string]bool{
+		"sqlite": true,
+		"ddb":    true,
+	}
+
+	if _, ok := validDatabase[flags.databaseDriver]; !ok {
+		cmd.Usage()
+		log.Fatal("Invalid or missing database driver. Should be 'sqlite' or 'ddb'")
+		os.Exit(1)
+	}
+
+	if flags.userid == 0 && flags.screenname == "" {
+		cmd.Usage()
+		log.Fatal("Missing userid or screenname")
+		os.Exit(1)
+	}
+
 	viper.SetConfigFile(flags.dotenvPath)
 	if err := viper.ReadInConfig(); err != nil {
 		log.Fatal(err)

@@ -41,9 +41,9 @@ func RunTimelineCmd() error {
 		}
 
 		if flags.backwards {
-			maxID = timelineConfig.MaxID
+			maxID = timelineConfig.SinceID
 		} else {
-			sinceID = timelineConfig.SinceID
+			sinceID = timelineConfig.MaxID
 		}
 	}
 

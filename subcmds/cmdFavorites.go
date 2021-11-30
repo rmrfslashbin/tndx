@@ -41,9 +41,9 @@ func RunFavoritesCmd() error {
 		}
 
 		if flags.backwards {
-			maxID = favConfig.MaxID
+			maxID = favConfig.SinceID
 		} else {
-			sinceID = favConfig.SinceID
+			sinceID = favConfig.MaxID
 		}
 	}
 
