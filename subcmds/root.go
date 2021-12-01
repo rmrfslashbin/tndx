@@ -216,8 +216,8 @@ func setup(cmd *cobra.Command) {
 
 	twitterApiKey, _ := viper.Get("TWITTER_API_KEY_PARAM").(string)
 	twitterApiSecret, _ := viper.Get("TWITTER_API_SECRET_PARAM").(string)
-	twitterAccessSecret, _ := viper.Get("TWITTER_ACCESS_SECRET_PARAM").(string)
-	twitterAccessToken, _ := viper.Get("TWITTER_ACCESS_TOKEN_PARAM").(string)
+	//twitterAccessSecret, _ := viper.Get("TWITTER_ACCESS_SECRET_PARAM").(string)
+	//twitterAccessToken, _ := viper.Get("TWITTER_ACCESS_TOKEN_PARAM").(string)
 	s3Bucket, _ := viper.Get("TNDX_S3_BUCKET_PARAM").(string)
 	s3Region, _ := viper.Get("TNDX_S3_REGION_PARAM").(string)
 	ddbTable, _ := viper.Get("TNDX_DDB_TABLE_PARAM").(string)
@@ -257,8 +257,8 @@ func setup(cmd *cobra.Command) {
 	}
 
 	// Async operations to fetch various configs data from AWS ssm parameter store.
-	ch_Twitter_Access_Secret := paramFetcher.GetParam(twitterAccessSecret)
-	ch_Twitter_Access_Token := paramFetcher.GetParam(twitterAccessToken)
+	//ch_Twitter_Access_Secret := paramFetcher.GetParam(twitterAccessSecret)
+	//ch_Twitter_Access_Token := paramFetcher.GetParam(twitterAccessToken)
 	ch_Twitter_API_Secret := paramFetcher.GetParam(twitterApiSecret)
 	ch_Twitter_API_Key := paramFetcher.GetParam(twitterApiKey)
 	ch_AWS_S3_Bucket := paramFetcher.GetParam(s3Bucket)
@@ -266,8 +266,8 @@ func setup(cmd *cobra.Command) {
 	// ch_SQS_Entities_URL := paramFetcher.GetParam(sqsEntitiesURL)
 
 	// Wait for the async operations to finsih.
-	accessSecret := <-ch_Twitter_Access_Secret
-	accessToken := <-ch_Twitter_Access_Token
+	//accessSecret := <-ch_Twitter_Access_Secret
+	//accessToken := <-ch_Twitter_Access_Token
 	consumerSecret := <-ch_Twitter_API_Secret
 	consumerKey := <-ch_Twitter_API_Key
 	tndxS3Bucket := <-ch_AWS_S3_Bucket
@@ -275,13 +275,15 @@ func setup(cmd *cobra.Command) {
 	// sqsURL := <-ch_SQS_Entities_URL
 
 	// Check for errors.
-	if accessSecret.Err != nil {
-		log.Panic(accessSecret.Err.Error())
-	}
+	/*
+		if accessSecret.Err != nil {
+			log.Panic(accessSecret.Err.Error())
+		}
 
-	if accessToken.Err != nil {
-		log.Panic(accessToken.Err.Error())
-	}
+		if accessToken.Err != nil {
+			log.Panic(accessToken.Err.Error())
+		}
+	*/
 
 	if consumerSecret.Err != nil {
 		log.Panic(consumerSecret.Err.Error())
@@ -312,8 +314,8 @@ func setup(cmd *cobra.Command) {
 	// svc.queue = queue.NewSQS(queue.SetLogger(log), queue.SetSQSURL(*sqsURL.ParameterOutput.Parameter.Value))
 
 	svc.twitterClient = service.New(
-		service.SetAccessSecret(*accessSecret.ParameterOutput.Parameter.Value),
-		service.SetAccessToken(*accessToken.ParameterOutput.Parameter.Value),
+		//service.SetAccessSecret(*accessSecret.ParameterOutput.Parameter.Value),
+		//service.SetAccessToken(*accessToken.ParameterOutput.Parameter.Value),
 		service.SetConsumerKey(*consumerKey.ParameterOutput.Parameter.Value),
 		service.SetConsumerSecret(*consumerSecret.ParameterOutput.Parameter.Value),
 		service.SetLogger(log),

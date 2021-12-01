@@ -2,8 +2,9 @@ package service
 
 import (
 	"github.com/dghubble/go-twitter/twitter"
-	"github.com/dghubble/oauth1"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/clientcredentials"
 )
 
 // User query params.
@@ -39,10 +40,21 @@ func New(opts ...func(*Config)) *Config {
 		opt(config)
 	}
 
+	/* oauth1
 	oauthConfig := oauth1.NewConfig(config.consumerKey, config.consumerSecret)
 	oauthToken := oauth1.NewToken(config.accessToken, config.accessSecret)
 	// http.Client will automatically authorize Requests
 	httpClient := oauthConfig.Client(oauth1.NoContext, oauthToken)
+	*/
+
+	// oauth2 configures a client that uses app credentials to keep a fresh token
+	oauthConfig := &clientcredentials.Config{
+		ClientID:     config.consumerKey,
+		ClientSecret: config.consumerSecret,
+		TokenURL:     "https://api.twitter.com/oauth2/token",
+	}
+	// http.Client will automatically authorize Requests
+	httpClient := oauthConfig.Client(oauth2.NoContext)
 
 	// Twitter client
 	config.client = twitter.NewClient(httpClient)
