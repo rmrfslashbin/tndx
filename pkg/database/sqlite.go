@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"path"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	_ "modernc.org/sqlite"
@@ -31,7 +32,7 @@ func NewSqliteDatabase(opts ...func(*SqliteDatabaseDriver)) *SqliteDatabaseDrive
 		panic(err)
 	}
 
-	createTableSQL := `CREATE TABLE IF NOT EXISTS tweets ("userid" integer NOT NULL PRIMARY KEY, "maxid" integer, "sinceid" integer); CREATE TABLE IF NOT EXISTS favorites ("userid" integer NOT NULL PRIMARY KEY, "maxid" integer, "sinceid" integer); CREATE TABLE IF NOT EXISTS followers ("userid" integer NOT NULL PRIMARY KEY, "nextCursor" integer, "previousCursor" integer);CREATE TABLE IF NOT EXISTS friends ("userid" integer NOT NULL PRIMARY KEY, "nextCursor" integer, "previousCursor" integer);`
+	createTableSQL := `CREATE TABLE IF NOT EXISTS tweets ("userid" integer NOT NULL PRIMARY KEY, "maxid" integer, "sinceid" integer, "lastupdate" integer); CREATE TABLE IF NOT EXISTS favorites ("userid" integer NOT NULL PRIMARY KEY, "maxid" integer, "sinceid" integer, "lastupdate" integer); CREATE TABLE IF NOT EXISTS followers ("userid" integer NOT NULL PRIMARY KEY, "nextCursor" integer, "previousCursor" integer, "lastupdate" integer);CREATE TABLE IF NOT EXISTS friends ("userid" integer NOT NULL PRIMARY KEY, "nextCursor" integer, "previousCursor" integer, "lastupdate" integer);`
 	statement, err := sqliteDB.Prepare(createTableSQL)
 	if err != nil {
 		panic(err)
@@ -116,45 +117,49 @@ func (config *SqliteDatabaseDriver) GetTimelineConfig(userID int64) (*TweetConfi
 }
 
 func (config *SqliteDatabaseDriver) PutFavoritesConfig(query *TweetConfigQuery) error {
-	insert := `INSERT INTO favorites (userid, sinceid, maxid) VALUES (?, ?, ?) ON CONFLICT (userid) DO UPDATE SET sinceid = ?, maxid = ?`
+	now := time.Now()
+	insert := `INSERT INTO favorites (userid, sinceid, maxid, lastupdate) VALUES (?, ?, ?, ?) ON CONFLICT (userid) DO UPDATE SET sinceid = ?, maxid = ?`
 	statement, err := config.db.Prepare(insert)
 	if err != nil {
 		return err
 	}
-	_, err = statement.Exec(query.UserID, query.SinceID, query.MaxID, query.SinceID, query.MaxID)
+	_, err = statement.Exec(query.UserID, query.SinceID, query.MaxID, now.UnixMilli(), query.SinceID, query.MaxID)
 	config.db.Close()
 	return err
 }
 
 func (config *SqliteDatabaseDriver) PutFollowersConfig(query *CursoredTweetConfigQuery) error {
-	insert := `INSERT INTO followers (userid, nextCursor, previousCursor) VALUES (?, ?, ?) ON CONFLICT (userid) DO UPDATE SET nextCursor = ?, previousCursor = ?`
+	now := time.Now()
+	insert := `INSERT INTO followers (userid, nextCursor, previousCursor, lastupdate) VALUES (?, ?, ?, ?) ON CONFLICT (userid) DO UPDATE SET nextCursor = ?, previousCursor = ?`
 	statement, err := config.db.Prepare(insert)
 	if err != nil {
 		return err
 	}
-	_, err = statement.Exec(query.UserID, query.NextCursor, query.PreviousCursor, query.NextCursor, query.PreviousCursor)
+	_, err = statement.Exec(query.UserID, query.NextCursor, query.PreviousCursor, now.UnixMilli(), query.NextCursor, query.PreviousCursor)
 	config.db.Close()
 	return err
 }
 
 func (config *SqliteDatabaseDriver) PutFriendsConfig(query *CursoredTweetConfigQuery) error {
-	insert := `INSERT INTO friends (userid, nextCursor, previousCursor) VALUES (?, ?, ?) ON CONFLICT (userid) DO UPDATE SET nextCursor = ?, previousCursor = ?`
+	now := time.Now()
+	insert := `INSERT INTO friends (userid, nextCursor, previousCursor, lastupdate) VALUES (?, ?, ?, ?) ON CONFLICT (userid) DO UPDATE SET nextCursor = ?, previousCursor = ?`
 	statement, err := config.db.Prepare(insert)
 	if err != nil {
 		return err
 	}
-	_, err = statement.Exec(query.UserID, query.NextCursor, query.PreviousCursor, query.NextCursor, query.PreviousCursor)
+	_, err = statement.Exec(query.UserID, query.NextCursor, query.PreviousCursor, now.UnixMilli(), query.NextCursor, query.PreviousCursor)
 	config.db.Close()
 	return err
 }
 
 func (config *SqliteDatabaseDriver) PutTimelineConfig(query *TweetConfigQuery) error {
-	createTableSQL := `INSERT INTO tweets (userid, sinceid, maxid) VALUES (?, ?, ?) ON CONFLICT (userid) DO UPDATE SET sinceid = ?, maxid = ?`
+	now := time.Now()
+	createTableSQL := `INSERT INTO tweets (userid, sinceid, maxid, lastupdate) VALUES (?, ?, ?, ?) ON CONFLICT (userid) DO UPDATE SET sinceid = ?, maxid = ?`
 	statement, err := config.db.Prepare(createTableSQL)
 	if err != nil {
 		return err
 	}
-	_, err = statement.Exec(query.UserID, query.SinceID, query.MaxID, query.SinceID, query.MaxID)
+	_, err = statement.Exec(query.UserID, query.SinceID, query.MaxID, now.UnixMilli(), query.SinceID, query.MaxID)
 	config.db.Close()
 	return err
 }
