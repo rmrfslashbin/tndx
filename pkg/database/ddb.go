@@ -2,6 +2,7 @@ package database
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -21,17 +22,19 @@ type DDBDriver struct {
 }
 
 type TweetsItem struct {
-	Domain  string `json:"domain"`
-	UserID  int64  `json:"userid"`
-	MaxID   int64  `json:"maxid"`
-	SinceID int64  `json:"sinceid"`
+	Domain     string `json:"domain"`
+	UserID     int64  `json:"userid"`
+	MaxID      int64  `json:"maxid"`
+	SinceID    int64  `json:"sinceid"`
+	LastUpdate int64  `json:"lastupdate"`
 }
 
 type FavoritesItem struct {
-	Domain  string `json:"domain"`
-	UserID  int64  `json:"userid"`
-	MaxID   int64  `json:"maxid"`
-	SinceID int64  `json:"sinceid"`
+	Domain     string `json:"domain"`
+	UserID     int64  `json:"userid"`
+	MaxID      int64  `json:"maxid"`
+	SinceID    int64  `json:"sinceid"`
+	LastUpdate int64  `json:"lastupdate"`
 }
 
 type FollowersItem struct {
@@ -39,6 +42,7 @@ type FollowersItem struct {
 	UserID         int64  `json:"userid"`
 	NextCursor     int64  `json:"nextcursor"`
 	PreviousCursor int64  `json:"previouscursor"`
+	LastUpdate     int64  `json:"lastupdate"`
 }
 
 type FriendsItem struct {
@@ -46,6 +50,7 @@ type FriendsItem struct {
 	UserID         int64  `json:"userid"`
 	NextCursor     int64  `json:"nextcursor"`
 	PreviousCursor int64  `json:"previouscursor"`
+	LastUpdate     int64  `json:"lastupdate"`
 }
 
 func NewDDB(opts ...func(*DDBDriver)) *DDBDriver {
@@ -210,11 +215,13 @@ func (config *DDBDriver) GetTimelineConfig(userID int64) (*TweetConfigQuery, err
 }
 
 func (config *DDBDriver) PutFavoritesConfig(query *TweetConfigQuery) error {
+	now := time.Now()
 	item := &FavoritesItem{
-		Domain:  "favorites",
-		UserID:  query.UserID,
-		MaxID:   query.MaxID,
-		SinceID: query.SinceID,
+		Domain:     "favorites",
+		UserID:     query.UserID,
+		MaxID:      query.MaxID,
+		SinceID:    query.SinceID,
+		LastUpdate: now.UnixMilli(),
 	}
 	kvp, err := dynamodbattribute.MarshalMap(item)
 	if err != nil {
@@ -234,11 +241,13 @@ func (config *DDBDriver) PutFavoritesConfig(query *TweetConfigQuery) error {
 }
 
 func (config *DDBDriver) PutFollowersConfig(query *CursoredTweetConfigQuery) error {
+	now := time.Now()
 	item := &FollowersItem{
 		Domain:         "followers",
 		UserID:         query.UserID,
 		PreviousCursor: query.PreviousCursor,
 		NextCursor:     query.NextCursor,
+		LastUpdate:     now.UnixMilli(),
 	}
 	kvp, err := dynamodbattribute.MarshalMap(item)
 	if err != nil {
@@ -258,11 +267,13 @@ func (config *DDBDriver) PutFollowersConfig(query *CursoredTweetConfigQuery) err
 }
 
 func (config *DDBDriver) PutFriendsConfig(query *CursoredTweetConfigQuery) error {
+	now := time.Now()
 	item := &FriendsItem{
 		Domain:         "friends",
 		UserID:         query.UserID,
 		PreviousCursor: query.PreviousCursor,
 		NextCursor:     query.NextCursor,
+		LastUpdate:     now.UnixMilli(),
 	}
 	kvp, err := dynamodbattribute.MarshalMap(item)
 	if err != nil {
@@ -282,11 +293,13 @@ func (config *DDBDriver) PutFriendsConfig(query *CursoredTweetConfigQuery) error
 }
 
 func (config *DDBDriver) PutTimelineConfig(query *TweetConfigQuery) error {
+	now := time.Now()
 	item := &TweetsItem{
-		Domain:  "tweets",
-		UserID:  query.UserID,
-		MaxID:   query.MaxID,
-		SinceID: query.SinceID,
+		Domain:     "tweets",
+		UserID:     query.UserID,
+		MaxID:      query.MaxID,
+		SinceID:    query.SinceID,
+		LastUpdate: now.UnixMilli(),
 	}
 	kvp, err := dynamodbattribute.MarshalMap(item)
 	if err != nil {
