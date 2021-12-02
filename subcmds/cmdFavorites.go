@@ -65,7 +65,7 @@ func RunFavoritesCmd() error {
 	)
 	if err != nil {
 		log.WithFields(logrus.Fields{
-			"action":   "RunFavoritesCmd::GetUserFriends",
+			"action":   "RunFavoritesCmd::GetUserFavorites",
 			"response": resp.Status,
 		}).Error("error getting user's favorites")
 		return err
@@ -84,7 +84,7 @@ func RunFavoritesCmd() error {
 					"error":   err.Error(),
 					"userid":  flags.userid,
 					"tweetId": tweets[t].ID,
-				}).Error("error putting friends")
+				}).Error("error putting favorites")
 				return err
 			}
 		}
@@ -110,7 +110,7 @@ func RunFavoritesCmd() error {
 			},
 		); err != nil {
 			logrus.WithFields(logrus.Fields{
-				"action":       "RunFavoritesCmd::PutFriendsConfig",
+				"action":       "RunFavoritesCmd::PutFavoritesConfig",
 				"error":        err.Error(),
 				"userid":       flags.userid,
 				"MaxUpperID":   upperID,
