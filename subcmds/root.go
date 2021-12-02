@@ -30,6 +30,7 @@ type cliFlags struct {
 	dotenvPath     string
 }
 
+// service stores drivers and clients
 type services struct {
 	twitterClient *service.Config
 	storage       storage.StorageDriver
@@ -216,19 +217,23 @@ func setup(cmd *cobra.Command) {
 
 	twitterApiKey, _ := viper.Get("TWITTER_API_KEY_PARAM").(string)
 	twitterApiSecret, _ := viper.Get("TWITTER_API_SECRET_PARAM").(string)
-	//twitterAccessSecret, _ := viper.Get("TWITTER_ACCESS_SECRET_PARAM").(string)
-	//twitterAccessToken, _ := viper.Get("TWITTER_ACCESS_TOKEN_PARAM").(string)
 	s3Bucket, _ := viper.Get("TNDX_S3_BUCKET_PARAM").(string)
 	s3Region, _ := viper.Get("TNDX_S3_REGION_PARAM").(string)
 	ddbTable, _ := viper.Get("TNDX_DDB_TABLE_PARAM").(string)
 	ddbRegion, _ := viper.Get("TNDX_DDB_REGION_PARAM").(string)
 	// sqsEntitiesURL, _ := viper.Get("TNDX_SQS_ENTITIES_URL_PARAM").(string)
 
-	paramFetcher, err := ssmparams.New()
+	// awscli profile name
+	awsProfile := "default"
+	awsRegion := "us-east-1"
+
+	// Set up a new ssmparams client
+	params, err := ssmparams.New(
+		ssmparams.SetProfile(awsProfile),
+		ssmparams.SetRegion(awsRegion),
+	)
 	if err != nil {
-		log.WithFields(logrus.Fields{
-			"action": "ssmparams init",
-		}).Fatal(err)
+		panic(err)
 	}
 
 	if flags.databaseDriver == "sqlite" {
@@ -245,79 +250,42 @@ func setup(cmd *cobra.Command) {
 			database.SetSqliteLogger(log),
 		)
 	} else if flags.databaseDriver == "ddb" {
-		ch_ddb_table := paramFetcher.GetParam(ddbTable)
-		ch_ddb_region := paramFetcher.GetParam(ddbRegion)
-		ddbTable := <-ch_ddb_table
-		ddbRegion := <-ch_ddb_region
+		outputs, err := params.GetParams([]string{ddbTable, ddbRegion})
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		svc.db = database.NewDDB(
 			database.SetDDBLogger(log),
-			database.SetDDBTable(*ddbTable.ParameterOutput.Parameter.Value),
-			database.SetDDBRegion(*ddbRegion.ParameterOutput.Parameter.Value),
+			database.SetDDBTable(outputs.Parameters[ddbTable].(string)),
+			database.SetDDBRegion(outputs.Parameters[ddbRegion].(string)),
 		)
+
 	}
 
-	// Async operations to fetch various configs data from AWS ssm parameter store.
-	//ch_Twitter_Access_Secret := paramFetcher.GetParam(twitterAccessSecret)
-	//ch_Twitter_Access_Token := paramFetcher.GetParam(twitterAccessToken)
-	ch_Twitter_API_Secret := paramFetcher.GetParam(twitterApiSecret)
-	ch_Twitter_API_Key := paramFetcher.GetParam(twitterApiKey)
-	ch_AWS_S3_Bucket := paramFetcher.GetParam(s3Bucket)
-	ch_AWS_S3_Region := paramFetcher.GetParam(s3Region)
-	// ch_SQS_Entities_URL := paramFetcher.GetParam(sqsEntitiesURL)
-
-	// Wait for the async operations to finsih.
-	//accessSecret := <-ch_Twitter_Access_Secret
-	//accessToken := <-ch_Twitter_Access_Token
-	consumerSecret := <-ch_Twitter_API_Secret
-	consumerKey := <-ch_Twitter_API_Key
-	tndxS3Bucket := <-ch_AWS_S3_Bucket
-	tndxS3Region := <-ch_AWS_S3_Region
-	// sqsURL := <-ch_SQS_Entities_URL
-
-	// Check for errors.
-	/*
-		if accessSecret.Err != nil {
-			log.Panic(accessSecret.Err.Error())
-		}
-
-		if accessToken.Err != nil {
-			log.Panic(accessToken.Err.Error())
-		}
-	*/
-
-	if consumerSecret.Err != nil {
-		log.Panic(consumerSecret.Err.Error())
-	}
-
-	if consumerKey.Err != nil {
-		log.Panic(consumerKey.Err.Error())
+	outputs, err := params.GetParams([]string{twitterApiKey, twitterApiSecret, s3Bucket, s3Region})
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	var storageDriver storage.StorageDriver
 	if flags.storageDriver == "local" {
 		storageDriver = storage.NewLocalStorage(storage.SetRootPath(flags.localRootPath))
 	} else {
-		if tndxS3Bucket.Err != nil {
-			log.Panic(tndxS3Bucket.Err.Error())
-		}
 
-		if tndxS3Region.Err != nil {
-			log.Panic(tndxS3Region.Err.Error())
-		}
 		storageDriver = storage.NewS3Storage(
-			storage.SetS3Bucket(*tndxS3Bucket.ParameterOutput.Parameter.Value),
-			storage.SetS3Region(*tndxS3Region.ParameterOutput.Parameter.Value),
+			storage.SetS3Bucket(outputs.Parameters[s3Bucket].(string)),
+			storage.SetS3Region(outputs.Parameters[s3Region].(string)),
 		)
+
 	}
 	svc.storage = storageDriver
 
-	// svc.queue = queue.NewSQS(queue.SetLogger(log), queue.SetSQSURL(*sqsURL.ParameterOutput.Parameter.Value))
+	//svc.queue = queue.NewSQS(queue.SetLogger(log), queue.SetSQSURL(*sqsURL.ParameterOutput.Parameter.Value))
 
 	svc.twitterClient = service.New(
-		//service.SetAccessSecret(*accessSecret.ParameterOutput.Parameter.Value),
-		//service.SetAccessToken(*accessToken.ParameterOutput.Parameter.Value),
-		service.SetConsumerKey(*consumerKey.ParameterOutput.Parameter.Value),
-		service.SetConsumerSecret(*consumerSecret.ParameterOutput.Parameter.Value),
+		service.SetConsumerKey(outputs.Parameters[twitterApiKey].(string)),
+		service.SetConsumerSecret(outputs.Parameters[twitterApiSecret].(string)),
 		service.SetLogger(log),
 	)
 }
