@@ -93,8 +93,8 @@ func RunFollowersCmd() error {
 
 	// Save the users.
 	for f := range followers.Users {
-		if data, err := json.MarshalIndent(followers.Users[f], "", "  "); err == nil {
-			if err := svc.storage.Put(path.Join(strconv.FormatInt(flags.userid, 10), "followers", followers.Users[f].IDStr), data); err != nil {
+		if data, err := json.Marshal(followers.Users[f]); err == nil {
+			if err := svc.storage.Put(path.Join("followers", strconv.FormatInt(flags.userid, 10), followers.Users[f].IDStr+".json"), data); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"action":     "RunFollowersCmd::Put",
 					"error":      err.Error(),

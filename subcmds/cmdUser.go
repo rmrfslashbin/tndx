@@ -20,8 +20,8 @@ func RunUserCmd() error {
 	}
 
 	spew.Dump(user)
-	if data, err := json.MarshalIndent(user, "", "  "); err == nil {
-		svc.storage.Put(path.Join(user.IDStr, user.IDStr), data)
+	if data, err := json.Marshal(user); err == nil {
+		svc.storage.Put(path.Join("users", user.IDStr+".json"), data)
 	}
 	return nil
 }

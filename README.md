@@ -60,3 +60,120 @@ The Main package of this modules leverages a sysetm of sub-command parsers. This
     }
 }
 ```
+
+## Athena Table
+https://aws.amazon.com/premiumsupport/knowledge-center/error-json-athena/
+https://ai-services.go-aws.com/30_social-media-analytics/50_create_athena_tables.html
+
+```
+CREATE EXTERNAL TABLE tndx.timelines (
+    coordinates STRUCT<
+        type: STRING,
+        coordinates: ARRAY<
+            DOUBLE
+        >
+    >,
+    retweeted BOOLEAN,
+    source STRING,
+    entities STRUCT<
+        hashtags: ARRAY<
+            STRUCT<
+                text: STRING,
+                indices: ARRAY<
+                    BIGINT
+                >
+            >
+        >,
+        urls: ARRAY<
+            STRUCT<
+                url: STRING,
+                expanded_url: STRING,
+                display_url: STRING,
+                indices: ARRAY<
+                    BIGINT
+                >
+            >
+        >
+    >,
+    reply_count BIGINT,
+    favorite_count BIGINT,
+    geo STRUCT<
+        type: STRING,
+        coordinates: ARRAY<
+            DOUBLE
+        >
+    >,
+    id_str STRING,
+    truncated BOOLEAN,
+    text STRING,
+    retweet_count BIGINT,
+    id BIGINT,
+    possibly_sensitive BOOLEAN,
+    filter_level STRING,
+    created_at STRING,
+    place STRUCT<
+        id: STRING,
+        url: STRING,
+        place_type: STRING,
+        name: STRING,
+        full_name: STRING,
+        country_code: STRING,
+        country: STRING,
+        bounding_box: STRUCT<
+            type: STRING,
+            coordinates: ARRAY<
+                ARRAY<
+                    ARRAY<
+                        FLOAT
+                    >
+                >
+            >
+        >
+    >,
+    favorited BOOLEAN,
+    lang STRING,
+    in_reply_to_screen_name STRING,
+    is_quote_status BOOLEAN,
+    in_reply_to_user_id_str STRING,
+    user STRUCT<
+        id: BIGINT,
+        id_str: STRING,
+        name: STRING,
+        screen_name: STRING,
+        location: STRING,
+        url: STRING,
+        description: STRING,
+        translator_type: STRING,
+        protected: BOOLEAN,
+        verified: BOOLEAN,
+        followers_count: BIGINT,
+        friends_count: BIGINT,
+        listed_count: BIGINT,
+        favourites_count: BIGINT,
+        statuses_count: BIGINT,
+        created_at: STRING,
+        utc_offset: BIGINT,
+        time_zone: STRING,
+        geo_enabled: BOOLEAN,
+        lang: STRING,
+        contributors_enabled: BOOLEAN,
+        is_translator: BOOLEAN,
+        profile_background_color: STRING,
+        profile_background_image_url: STRING,
+        profile_background_image_url_https: STRING,
+        profile_background_tile: BOOLEAN,
+        profile_link_color: STRING,
+        profile_sidebar_border_color: STRING,
+        profile_sidebar_fill_color: STRING,
+        profile_text_color: STRING,
+        profile_use_background_image: BOOLEAN,
+        profile_image_url: STRING,
+        profile_image_url_https: STRING,
+        profile_banner_url: STRING,
+        default_profile: BOOLEAN,
+        default_profile_image: BOOLEAN
+    >,
+    quote_count BIGINT
+) ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
+LOCATION 's3://you/s3/bucket/path/';
+```

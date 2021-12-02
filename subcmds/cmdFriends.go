@@ -92,8 +92,8 @@ func RunFriendsCmd() error {
 
 	// Save the users.
 	for f := range friends.Users {
-		if data, err := json.MarshalIndent(friends.Users[f], "", "  "); err == nil {
-			if err := svc.storage.Put(path.Join(strconv.FormatInt(flags.userid, 10), "friends", friends.Users[f].IDStr), data); err != nil {
+		if data, err := json.Marshal(friends.Users[f]); err == nil {
+			if err := svc.storage.Put(path.Join("friends", strconv.FormatInt(flags.userid, 10), friends.Users[f].IDStr+".json"), data); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"action":   "RunFriendsCmd::Put",
 					"error":    err.Error(),

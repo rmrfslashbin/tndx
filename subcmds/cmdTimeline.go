@@ -77,8 +77,8 @@ func RunTimelineCmd() error {
 
 	// Loop through all the tweets.
 	for t := range tweets {
-		if data, err := json.MarshalIndent(tweets[t], "", "  "); err == nil {
-			if err := svc.storage.Put(path.Join(strconv.FormatInt(flags.userid, 10), "timeline", tweets[t].IDStr), data); err != nil {
+		if data, err := json.Marshal(tweets[t]); err == nil {
+			if err := svc.storage.Put(path.Join("timeline", strconv.FormatInt(flags.userid, 10), tweets[t].IDStr+".json"), data); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"action":  "RunTimelineCmd::Put",
 					"error":   err.Error(),
