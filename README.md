@@ -2,22 +2,59 @@
 Twitter Indexer
 
 ## Summary
-tndx is a proof of concept project to learn Go. The operations of the project fetches user details, timeline, and favorites from Twitter then converts to JSON format, compresses, and stores in an AWS S3 bucket.
+```tndx``` fetches user details, timeline, followers, friends, and favorites from Twitter, then converts to JSON format, compresses, and stores in an AWS S3 bucket in an [Athena](https://aws.amazon.com/athena/)/[Trino](https://trino.io) compatible manner.
 
 ## AWS Services
+An AWS account and local [.aws credentials file](https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/setup-credentials.html) must be set up to run ```tndx```.
+
 ### SSM Parameter Store
-Configuration data including Twitter API keys and S3 bucket details are stores in AWS SSM the Parameter Store. A local .aws credentials file must be set up to access the data.
+Configuration data including Twitter API keys and S3 bucket details are stored in the [AWS SSM Parameter Store](https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html). 
 
 ### S3
-JSON data files are uploaded to an S3 bucket specified in the SSM Param Store. The files are stored in such a way to allow AWS Glue and Athena to "crawl" the data and then query the resulting tables.
+JSON data files are uploaded to an [S3](https://aws.amazon.com/s3/) bucket specified in the SSM Param Store. The files are stored in such a way to allow [AWS Glue](https://aws.amazon.com/glue/) and Athena to "crawl" the data and then query the resulting tables.
 
 ## Twitter
-A new Twitter project and application were configured for this project. API/Consumer and Access keys/secrets are stored in the AWS SSM Param Store. Further development of this module may include activation of OAuth2 services to query Twitter as other users.
+A [Twitter project and application](https://developer.twitter.com/) must be configured for this project. API/Consumer keys are stored in the AWS SSM Param Store. ```tndx``` uses Twitter's [OAuth 2.0](https://developer.twitter.com/en/docs/authentication/oauth-2-0) services.
 
-## Subcommands
-The Main package of this modules leverages a sysetm of sub-command parsers. This allows the command to be run with a specified sub-command for execution.
+## Usage
+```
+Usage:
+   [command]
 
-## DDB Config
+Available Commands:
+  completion  generate the autocompletion script for the specified shell
+  entities    fetch entities
+  favorites   fetch the user's favorites
+  followers   fetch the user's followers
+  friends     fetch the user's friends
+  help        Help about any command
+  timeline    fetch the user's timeline
+  user        lookup user by userid or screenname
+
+Flags:
+      --database string        [sqlite|ddb]
+      --dotenv string          dotenv path (default "./.env")
+  -h, --help                   help for this command
+      --localrootpath string   local root path (default "./data")
+      --loglevel string        [error|warn|info|debug|trace] (default "info")
+      --screenname string      screen name
+      --storage string         [local|s3]
+      --userid int             user id
+  -v, --version                version for this command
+
+Use " [command] --help" for more information about a command.
+```
+
+### Example
+```
+% tndx --database ddb --storage s3 favorites --userid 16020064
+INFO[0002] finished getting timeline action="RunTimelineCmd::Done!" count=26 lowerID=1465833642157 upperID=1460899680291 userid=16020064
+%
+```
+
+## AWS Configs
+
+### DDB Config
 ```
 {
     "Table": {
@@ -61,9 +98,9 @@ The Main package of this modules leverages a sysetm of sub-command parsers. This
 }
 ```
 
-## Athena Table
-https://aws.amazon.com/premiumsupport/knowledge-center/error-json-athena/
-https://ai-services.go-aws.com/30_social-media-analytics/50_create_athena_tables.html
+### Athena Table
+* https://aws.amazon.com/premiumsupport/knowledge-center/error-json-athena/
+* https://ai-services.go-aws.com/30_social-media-analytics/50_create_athena_tables.html
 
 ```
 CREATE EXTERNAL TABLE tndx.timelines (
