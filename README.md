@@ -99,118 +99,17 @@ INFO[0002] finished getting timeline action="RunTimelineCmd::Done!" count=26 low
 ```
 
 ### Athena Table
+While ```tndx``` saves the export data in an Glue/Athena mannor, the below resources helped identify proper orginization and output formatting.
 * https://aws.amazon.com/premiumsupport/knowledge-center/error-json-athena/
 * https://ai-services.go-aws.com/30_social-media-analytics/50_create_athena_tables.html
 
-```
-CREATE EXTERNAL TABLE tndx.timelines (
-    coordinates STRUCT<
-        type: STRING,
-        coordinates: ARRAY<
-            DOUBLE
-        >
-    >,
-    retweeted BOOLEAN,
-    source STRING,
-    entities STRUCT<
-        hashtags: ARRAY<
-            STRUCT<
-                text: STRING,
-                indices: ARRAY<
-                    BIGINT
-                >
-            >
-        >,
-        urls: ARRAY<
-            STRUCT<
-                url: STRING,
-                expanded_url: STRING,
-                display_url: STRING,
-                indices: ARRAY<
-                    BIGINT
-                >
-            >
-        >
-    >,
-    reply_count BIGINT,
-    favorite_count BIGINT,
-    geo STRUCT<
-        type: STRING,
-        coordinates: ARRAY<
-            DOUBLE
-        >
-    >,
-    id_str STRING,
-    truncated BOOLEAN,
-    text STRING,
-    retweet_count BIGINT,
-    id BIGINT,
-    possibly_sensitive BOOLEAN,
-    filter_level STRING,
-    created_at STRING,
-    place STRUCT<
-        id: STRING,
-        url: STRING,
-        place_type: STRING,
-        name: STRING,
-        full_name: STRING,
-        country_code: STRING,
-        country: STRING,
-        bounding_box: STRUCT<
-            type: STRING,
-            coordinates: ARRAY<
-                ARRAY<
-                    ARRAY<
-                        FLOAT
-                    >
-                >
-            >
-        >
-    >,
-    favorited BOOLEAN,
-    lang STRING,
-    in_reply_to_screen_name STRING,
-    is_quote_status BOOLEAN,
-    in_reply_to_user_id_str STRING,
-    user STRUCT<
-        id: BIGINT,
-        id_str: STRING,
-        name: STRING,
-        screen_name: STRING,
-        location: STRING,
-        url: STRING,
-        description: STRING,
-        translator_type: STRING,
-        protected: BOOLEAN,
-        verified: BOOLEAN,
-        followers_count: BIGINT,
-        friends_count: BIGINT,
-        listed_count: BIGINT,
-        favourites_count: BIGINT,
-        statuses_count: BIGINT,
-        created_at: STRING,
-        utc_offset: BIGINT,
-        time_zone: STRING,
-        geo_enabled: BOOLEAN,
-        lang: STRING,
-        contributors_enabled: BOOLEAN,
-        is_translator: BOOLEAN,
-        profile_background_color: STRING,
-        profile_background_image_url: STRING,
-        profile_background_image_url_https: STRING,
-        profile_background_tile: BOOLEAN,
-        profile_link_color: STRING,
-        profile_sidebar_border_color: STRING,
-        profile_sidebar_fill_color: STRING,
-        profile_text_color: STRING,
-        profile_use_background_image: BOOLEAN,
-        profile_image_url: STRING,
-        profile_image_url_https: STRING,
-        profile_banner_url: STRING,
-        default_profile: BOOLEAN,
-        default_profile_image: BOOLEAN
-    >,
-    quote_count BIGINT
-) ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
-LOCATION 's3://you/s3/bucket/path/';
-```
+### Glue
+Once data files are saved in S3, use an AWS Glue Crawler to populate Hive data (this is a step towards using Trino to query the saved data). The below items are a general reference for setting up a crawler.
+* Go to https://console.aws.amazon.com/glue/home?region=us-east-1#catalog:tab=crawlers
+* Set up a new crawler...
+* Crawler source type: Data stores
+* Repeat crawls of S3 data stores: Crawl all folders
+* Include Path: s3://my-tndx-bucket/timeline
+* Grouping behavior for S3 data (optional): (check) Create a single schema for each S3 path
+
+Run the crawler and query with Athena or Trino.
