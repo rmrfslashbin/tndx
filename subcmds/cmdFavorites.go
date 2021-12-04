@@ -2,6 +2,7 @@ package subcmds
 
 import (
 	"encoding/json"
+	"fmt"
 	"path"
 	"strconv"
 
@@ -86,6 +87,29 @@ func RunFavoritesCmd() error {
 					"tweetId": tweets[t].ID,
 				}).Error("error putting favorites")
 				return err
+			}
+		}
+
+		if flags.qEntities {
+			// Loop through all the media entities
+			for m := range tweets[t].Entities.Media {
+				var url string
+				if tweets[t].Entities.Media[m].MediaURLHttps != "" {
+					url = tweets[t].Entities.Media[m].MediaURLHttps
+				} else if tweets[t].Entities.Media[m].MediaURL != "" {
+					url = tweets[t].Entities.Media[m].MediaURL
+				}
+				if url != "" {
+					if err := svc.queue.SendMessage(tweets[t].IDStr, url); err != nil {
+						logrus.WithFields(logrus.Fields{
+							"action":  "RunTimelineCmd::queue::SendMessage",
+							"error":   err.Error(),
+							"userid":  flags.userid,
+							"tweetId": tweets[t].ID,
+						}).Error("error sending message to queue")
+						fmt.Printf("Queued: %s\n", url)
+					}
+				}
 			}
 		}
 

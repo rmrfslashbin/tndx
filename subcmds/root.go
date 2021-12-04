@@ -28,6 +28,7 @@ type cliFlags struct {
 	databaseDriver string
 	localRootPath  string
 	dotenvPath     string
+	qEntities      bool
 }
 
 // service stores drivers and clients
@@ -160,10 +161,12 @@ func init() {
 	cmdFavorites.PersistentFlags().Int64VarP(&flags.maxid, "maxid", "", 0, "max id (to overrride database return)")
 	cmdFavorites.PersistentFlags().Int64VarP(&flags.sinceid, "sinceid", "", 0, "since id (to overrride database return)")
 	cmdFavorites.PersistentFlags().BoolVarP(&flags.backwards, "backwards", "", false, "fetch backwards")
+	cmdFavorites.PersistentFlags().BoolVarP(&flags.qEntities, "queueentities", "", false, "send media entities to SQS")
 
 	cmdTimeline.PersistentFlags().Int64VarP(&flags.maxid, "maxid", "", 0, "max id (to overrride database return)")
 	cmdTimeline.PersistentFlags().Int64VarP(&flags.sinceid, "sinceid", "", 0, "since id (to overrride database return)")
 	cmdTimeline.PersistentFlags().BoolVarP(&flags.backwards, "backwards", "", false, "fetch backwards")
+	cmdTimeline.PersistentFlags().BoolVarP(&flags.qEntities, "queueentities", "", false, "send media entities to SQS")
 
 	RootCmd.AddCommand(
 		cmdLookup,
@@ -221,7 +224,6 @@ func setup(cmd *cobra.Command) {
 	s3Region, _ := viper.Get("TNDX_S3_REGION_PARAM").(string)
 	ddbTable, _ := viper.Get("TNDX_DDB_TABLE_PARAM").(string)
 	ddbRegion, _ := viper.Get("TNDX_DDB_REGION_PARAM").(string)
-	// sqsEntitiesURL, _ := viper.Get("TNDX_SQS_ENTITIES_URL_PARAM").(string)
 
 	// awscli profile name
 	awsProfile := "default"
@@ -234,6 +236,15 @@ func setup(cmd *cobra.Command) {
 	)
 	if err != nil {
 		panic(err)
+	}
+
+	if flags.qEntities {
+		sqsEntitiesURL, _ := viper.Get("TNDX_SQS_ENTITIES_URL_PARAM").(string)
+		outputs, err := params.GetParams([]string{sqsEntitiesURL})
+		if err != nil {
+			log.Fatal(err)
+		}
+		svc.queue = queue.NewSQS(queue.SetLogger(log), queue.SetSQSURL(outputs.Parameters[sqsEntitiesURL].(string)))
 	}
 
 	if flags.databaseDriver == "sqlite" {
@@ -280,8 +291,6 @@ func setup(cmd *cobra.Command) {
 
 	}
 	svc.storage = storageDriver
-
-	//svc.queue = queue.NewSQS(queue.SetLogger(log), queue.SetSQSURL(*sqsURL.ParameterOutput.Parameter.Value))
 
 	svc.twitterClient = service.New(
 		service.SetConsumerKey(outputs.Parameters[twitterApiKey].(string)),

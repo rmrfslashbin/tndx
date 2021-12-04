@@ -1,8 +1,6 @@
 package queue
 
 import (
-	"strconv"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -50,13 +48,13 @@ func SetLogger(log *logrus.Logger) Option {
 	}
 }
 
-func (config *Config) SendMessage(userid int64, url string) error {
+func (config *Config) SendMessage(tweetId string, url string) error {
 	_, err := config.sqs.SendMessage(&sqs.SendMessageInput{
 		DelaySeconds: aws.Int64(10),
 		MessageAttributes: map[string]*sqs.MessageAttributeValue{
-			"userid": &sqs.MessageAttributeValue{
+			"tweetId": &sqs.MessageAttributeValue{
 				DataType:    aws.String("String"),
-				StringValue: aws.String(strconv.FormatInt(userid, 10)),
+				StringValue: aws.String(tweetId),
 			},
 			"url": &sqs.MessageAttributeValue{
 				DataType:    aws.String("String"),
@@ -86,7 +84,7 @@ func (config *Config) ReceiveMessage() error {
 		return err
 	}
 	for _, message := range result.Messages {
-		userid := (message.MessageAttributes["userid"].StringValue)
+		userid := (message.MessageAttributes["tweetId"].StringValue)
 		url := message.MessageAttributes["url"].StringValue
 		if err := utils.SaveEntities(userid, url); err != nil {
 			config.log.Error(err)

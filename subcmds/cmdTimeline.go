@@ -2,6 +2,7 @@ package subcmds
 
 import (
 	"encoding/json"
+	"fmt"
 	"path"
 	"strconv"
 
@@ -89,8 +90,8 @@ func RunTimelineCmd() error {
 			}
 		}
 
-		// Loop through all the media entities
-		/*
+		if flags.qEntities {
+			// Loop through all the media entities
 			for m := range tweets[t].Entities.Media {
 				var url string
 				if tweets[t].Entities.Media[m].MediaURLHttps != "" {
@@ -99,7 +100,7 @@ func RunTimelineCmd() error {
 					url = tweets[t].Entities.Media[m].MediaURL
 				}
 				if url != "" {
-					if err := svc.queue.SendMessage(flags.userid, url); err != nil {
+					if err := svc.queue.SendMessage(tweets[t].IDStr, url); err != nil {
 						logrus.WithFields(logrus.Fields{
 							"action":  "RunTimelineCmd::queue::SendMessage",
 							"error":   err.Error(),
@@ -110,7 +111,7 @@ func RunTimelineCmd() error {
 					}
 				}
 			}
-		*/
+		}
 
 		// Calculate the max and min tweet IDs.
 		if tweets[t].ID > upperID {
