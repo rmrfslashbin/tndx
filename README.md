@@ -1,5 +1,5 @@
 # tndx
-Twitter Indexer
+Twitter Indexer & Archiver
 
 ## Summary
 ```tndx``` fetches user details, timeline, followers, friends, and favorites from Twitter, then converts to JSON format, compresses, and stores in an AWS S3 bucket in an [Athena](https://aws.amazon.com/athena/)/[Trino](https://trino.io) compatible manner.
