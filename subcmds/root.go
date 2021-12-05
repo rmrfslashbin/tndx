@@ -168,6 +168,8 @@ func init() {
 	cmdTimeline.PersistentFlags().BoolVarP(&flags.backwards, "backwards", "", false, "fetch backwards")
 	cmdTimeline.PersistentFlags().BoolVarP(&flags.qEntities, "queueentities", "", false, "send media entities to SQS")
 
+	cmdEntities.PersistentFlags().BoolVarP(&flags.qEntities, "queueentities", "", false, "send media entities to SQS")
+
 	RootCmd.AddCommand(
 		cmdLookup,
 		cmdFriends,
@@ -240,11 +242,15 @@ func setup(cmd *cobra.Command) {
 
 	if flags.qEntities {
 		sqsEntitiesURL, _ := viper.Get("TNDX_SQS_ENTITIES_URL_PARAM").(string)
-		outputs, err := params.GetParams([]string{sqsEntitiesURL})
+		outputs, err := params.GetParams([]string{sqsEntitiesURL, s3Bucket})
 		if err != nil {
 			log.Fatal(err)
 		}
-		svc.queue = queue.NewSQS(queue.SetLogger(log), queue.SetSQSURL(outputs.Parameters[sqsEntitiesURL].(string)))
+		svc.queue = queue.NewSQS(
+			queue.SetLogger(log),
+			queue.SetSQSURL(outputs.Parameters[sqsEntitiesURL].(string)),
+			queue.SetS3Bucket(outputs.Parameters[s3Bucket].(string)),
+		)
 	}
 
 	if flags.databaseDriver == "sqlite" {

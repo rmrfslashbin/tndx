@@ -13,6 +13,7 @@ type Option func(config *Config)
 // Configuration structure.
 type Config struct {
 	sqsQueueURL string
+	s3Bucket    string
 	log         *logrus.Logger
 	sqs         *sqs.SQS
 }
@@ -42,6 +43,12 @@ func SetSQSURL(sqsQueueURL string) Option {
 	}
 }
 
+func SetS3Bucket(s3Bucket string) Option {
+	return func(config *Config) {
+		config.s3Bucket = s3Bucket
+	}
+}
+
 func SetLogger(log *logrus.Logger) Option {
 	return func(config *Config) {
 		config.log = log
@@ -59,6 +66,10 @@ func (config *Config) SendMessage(tweetId string, url string) error {
 			"url": &sqs.MessageAttributeValue{
 				DataType:    aws.String("String"),
 				StringValue: aws.String(url),
+			},
+			"bucket": &sqs.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(config.s3Bucket),
 			},
 		},
 		MessageBody: aws.String("This is a test message."),

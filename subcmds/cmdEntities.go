@@ -5,11 +5,11 @@ import (
 )
 
 func RunEntitiesCmd() error {
-	if err := svc.queue.ReceiveMessage(); err != nil {
+	if err := svc.queue.SendMessage("1466090637544112141", "https://pbs.twimg.com/media/FFiZqstXwA0FsEW.jpg"); err != nil {
 		log.WithFields(logrus.Fields{
-			"action": "RunEntitiesCmd::ReceiveMessage",
+			"action": "RunEntitiesCmd::SendMessage",
 			"error":  err.Error(),
-		}).Error("error receiving message")
+		}).Error("error sending message")
 		return err
 	}
 	return nil
