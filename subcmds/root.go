@@ -123,16 +123,18 @@ var (
 		},
 	}
 
-	cmdEntities = &cobra.Command{
-		Use:   "entities",
-		Short: "fetch entities",
-		Run: func(cmd *cobra.Command, args []string) {
-			if err := RunEntitiesCmd(); err != nil {
-				log.Fatal(err)
-				os.Exit(1)
-			}
-		},
-	}
+	/*
+		cmdEntities = &cobra.Command{
+			Use:   "entities",
+			Short: "fetch entities",
+			Run: func(cmd *cobra.Command, args []string) {
+				if err := RunEntitiesCmd(); err != nil {
+					log.Fatal(err)
+					os.Exit(1)
+				}
+			},
+		}
+	*/
 )
 
 // init sets up the CLI and flags
@@ -168,7 +170,7 @@ func init() {
 	cmdTimeline.PersistentFlags().BoolVarP(&flags.backwards, "backwards", "", false, "fetch backwards")
 	cmdTimeline.PersistentFlags().BoolVarP(&flags.qEntities, "queueentities", "", false, "send media entities to SQS")
 
-	cmdEntities.PersistentFlags().BoolVarP(&flags.qEntities, "queueentities", "", false, "send media entities to SQS")
+	//cmdEntities.PersistentFlags().BoolVarP(&flags.qEntities, "queueentities", "", false, "send media entities to SQS")
 
 	RootCmd.AddCommand(
 		cmdLookup,
@@ -176,7 +178,7 @@ func init() {
 		cmdFollowers,
 		cmdFavorites,
 		cmdTimeline,
-		cmdEntities,
+		//cmdEntities,
 	)
 }
 
