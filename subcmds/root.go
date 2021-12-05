@@ -46,7 +46,7 @@ var (
 
 	// rootCmd is the Viper root command
 	RootCmd = &cobra.Command{
-		Version: "v2021.12.02-04",
+		Version: "v2021.12.04-00",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			// Set the log level
 			switch flags.loglevel {
