@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  tndx
+
+  The Twitter ndx
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 60
+
+Resources:
+  tndxFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: ../bin/
+      Handler: bootstrap
+      Runtime: provided.al2
+      Architectures: [arm64]
+      Role: !GetAtt FunctionRole.Arn
+
+  FunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: "TndxParameterStoreAccess"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "ssm:GetParameter*"
+                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tndx*"
+        - PolicyName: "TndxS3Access"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: "arn:aws:s3:::is-tndx"
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource: "arn:aws:s3:::is-tndx/*"
+        - PolicyName: "TndxSQSAccess"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                  - sqs:ReceiveMessage
+                Resource: "arn:aws:sqs:us-east-1:150319663043:tndx-entities"
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                Resource: "arn:aws:ssm:us-east-1:150319663043:parameter/tndx*"
+        - PolicyName: "TndxDDBAccess"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                Resource: "arn:aws:dynamodb:us-east-1:150319663043:table/tndx"

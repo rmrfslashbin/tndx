@@ -3,6 +3,8 @@
 PROJECT := tndx
 SYSTEM := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 MACHINE := $(shell uname -m | tr '[:upper:]' '[:lower:]')
+deploy_bucket = aws-sam-cli-managed-default-samclisourcebucket-1cgv746ppjbj9
+stack_name = $(PROJECT)
 
 
 SHA_CMD := $(shell { command -v sha256sum || command -v shasum; } 2>/dev/null)
@@ -38,3 +40,11 @@ docker-build:
 	@docker build -t github.com/rmrfslashbin/$(PROJECT):latest .
 
 default: run
+
+
+cfdeploy: lambda-build
+	aws cloudformation package --template-file aws-cloudformation/template.yaml --s3-bucket $(deploy_bucket) --output-template-file aws-cloudformation/out.yaml
+	aws cloudformation deploy --template-file aws-cloudformation/out.yaml --stack-name $(stack_name) --capabilities CAPABILITY_NAMED_IAM
+
+lambda-build:
+	GOOS=linux go build -o bin/bootstrap cmd/lambda/main.go
