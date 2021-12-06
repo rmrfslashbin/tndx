@@ -43,8 +43,11 @@ default: run
 
 
 cfdeploy: lambda-build
-	aws cloudformation package --template-file aws-cloudformation/template.yaml --s3-bucket $(deploy_bucket) --output-template-file aws-cloudformation/out.yaml
-	aws cloudformation deploy --template-file aws-cloudformation/out.yaml --stack-name $(stack_name) --capabilities CAPABILITY_NAMED_IAM
+	aws cloudformation package --template-file aws-cloudformation/template.yaml --s3-bucket $(deploy_bucket) --output-template-file build/out.yaml
+	aws cloudformation deploy --template-file build/out.yaml --stack-name $(stack_name) --capabilities CAPABILITY_NAMED_IAM
 
 lambda-build:
 	GOOS=linux go build -o bin/bootstrap cmd/lambda/main.go
+
+cfdescribe:
+	aws cloudformation describe-stack-events --stack-name $(stack_name)

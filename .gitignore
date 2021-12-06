@@ -1,6 +1,7 @@
-# ignore data and bin dirs
-data/
+# ignore data, bin, and build dirs
+build/
 bin/
+data/
 
 # Created by https://www.toptal.com/developers/gitignore/api/go,dotenv,linux,macos,visualstudiocode
 # Edit at https://www.toptal.com/developers/gitignore?templates=go,dotenv,linux,macos,visualstudiocode

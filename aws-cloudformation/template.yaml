@@ -19,6 +19,21 @@ Resources:
       Runtime: provided.al2
       Architectures: [arm64]
       Role: !GetAtt FunctionRole.Arn
+  tndxRunnerTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: tndx-runners
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: runnername
+          AttributeType: S
+        - AttributeName: userid
+          AttributeType: N
+      KeySchema:
+        - AttributeName: runnername
+          KeyType: HASH
+        - AttributeName: userid
+          KeyType: RANGE
 
   FunctionRole:
     Type: AWS::IAM::Role
@@ -76,4 +91,6 @@ Resources:
                 Action:
                   - dynamodb:GetItem
                   - dynamodb:PutItem
-                Resource: "arn:aws:dynamodb:us-east-1:150319663043:table/tndx"
+                Resource:
+                  - "arn:aws:dynamodb:us-east-1:150319663043:table/tndx"
+                  - !GetAtt tndxRunnerTable.Arn

@@ -55,6 +55,19 @@ func init() {
 	log.SetFormatter(&logrus.JSONFormatter{})
 }
 
+func main() {
+	// Catch errors
+	var err error
+	defer func() {
+		if err != nil {
+			logrus.WithFields(logrus.Fields{
+				"error": err,
+			}).Fatal("main crashed")
+		}
+	}()
+	lambda.Start(HandleLambdaEvent)
+}
+
 func HandleLambdaEvent(event Bootstrap) (Response, error) {
 	message := ""
 
@@ -100,7 +113,8 @@ func HandleLambdaEvent(event Bootstrap) (Response, error) {
 	if event.SSMParams.TwitterAPISecret == "" {
 		return Response{Message: "SSMParams.TwitterAPISecret is required"}, errors.New("SSMParams.TwitterAPISecret is required")
 	}
-	p := []*string{
+
+	outputs, err := getParams([]*string{
 		&event.SSMParams.EntityQueue,
 		&event.SSMParams.S3Bucket,
 		&event.SSMParams.S3Region,
@@ -108,9 +122,7 @@ func HandleLambdaEvent(event Bootstrap) (Response, error) {
 		&event.SSMParams.DDBRegion,
 		&event.SSMParams.TwitterAPIKey,
 		&event.SSMParams.TwitterAPISecret,
-	}
-
-	outputs, err := getParams(p)
+	})
 
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
@@ -211,84 +223,6 @@ func HandleLambdaEvent(event Bootstrap) (Response, error) {
 	}).Info("Lambda function triggered")
 
 	return Response{Message: message}, nil
-}
-
-func main() {
-	// Catch errors
-	var err error
-	defer func() {
-		if err != nil {
-			logrus.WithFields(logrus.Fields{
-				"error": err,
-			}).Fatal("main crashed")
-		}
-	}()
-	lambda.Start(HandleLambdaEvent)
-}
-
-func user(userid int64) error {
-	user, _, err := svc.twitterClient.GetUser(&service.QueryParams{UserID: userid})
-	if err != nil {
-		log.WithFields(logrus.Fields{
-			"action": "user::GetUser",
-			"userid": userid,
-			"error":  err.Error(),
-		}).Error("error getting user.")
-		return err
-	}
-
-	log.WithFields(logrus.Fields{
-		"action": "user::GetUser",
-		"userid": userid,
-	}).Info("got user.")
-
-	if data, err := json.Marshal(user); err != nil {
-		log.WithFields(logrus.Fields{
-			"action": "user::GetUser",
-			"userid": userid,
-			"error":  err.Error(),
-		}).Error("error marshalling user.")
-		return err
-	} else {
-		if err := svc.storage.Put(path.Join("users", user.IDStr+".json"), data); err != nil {
-			log.WithFields(logrus.Fields{
-				"action": "user::GetUser",
-				"userid": userid,
-				"error":  err.Error(),
-			}).Error("error storing user.")
-			return err
-		} else {
-			log.WithFields(logrus.Fields{
-				"action": "user::GetUser::Storage::Put",
-				"userid": userid,
-			}).Info("stored user.")
-		}
-	}
-	return nil
-}
-
-func getParams(paramNames []*string) (map[string]interface{}, error) {
-	s := ssm.New(session.Must(session.NewSession()))
-	// Create a SSM client with additional configuration
-	//svc := ssm.New(mySession, aws.NewConfig().WithRegion("us-west-2"))
-
-	ret, err := s.GetParameters(&ssm.GetParametersInput{
-		Names: paramNames,
-	})
-	if err != nil {
-		log.WithFields(logrus.Fields{
-			"action": "ssmparams::GetParameters",
-			"error":  err.Error(),
-		}).Error("error getting parameters.")
-		return nil, err
-	}
-	output := make(map[string]interface{})
-
-	for _, v := range ret.Parameters {
-		output[*v.Name] = *v.Value
-	}
-	return output, nil
-
 }
 
 func favorites(userid int64) error {
@@ -553,6 +487,30 @@ func friends(userid int64) error {
 	return nil
 }
 
+func getParams(paramNames []*string) (map[string]interface{}, error) {
+	s := ssm.New(session.Must(session.NewSession()))
+	// Create a SSM client with additional configuration
+	//svc := ssm.New(mySession, aws.NewConfig().WithRegion("us-west-2"))
+
+	ret, err := s.GetParameters(&ssm.GetParametersInput{
+		Names: paramNames,
+	})
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			"action": "ssmparams::GetParameters",
+			"error":  err.Error(),
+		}).Error("error getting parameters.")
+		return nil, err
+	}
+	output := make(map[string]interface{})
+
+	for _, v := range ret.Parameters {
+		output[*v.Name] = *v.Value
+	}
+	return output, nil
+
+}
+
 func timeline(userid int64) error {
 	timelineConfig, err := svc.db.GetTimelineConfig(userid)
 	if err != nil {
@@ -665,5 +623,46 @@ func timeline(userid int64) error {
 		"count":   len(tweets),
 	}).Info("finished getting timeline")
 
+	return nil
+}
+
+func user(userid int64) error {
+	user, _, err := svc.twitterClient.GetUser(&service.QueryParams{UserID: userid})
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			"action": "user::GetUser",
+			"userid": userid,
+			"error":  err.Error(),
+		}).Error("error getting user.")
+		return err
+	}
+
+	log.WithFields(logrus.Fields{
+		"action": "user::GetUser",
+		"userid": userid,
+	}).Info("got user.")
+
+	if data, err := json.Marshal(user); err != nil {
+		log.WithFields(logrus.Fields{
+			"action": "user::GetUser",
+			"userid": userid,
+			"error":  err.Error(),
+		}).Error("error marshalling user.")
+		return err
+	} else {
+		if err := svc.storage.Put(path.Join("users", user.IDStr+".json"), data); err != nil {
+			log.WithFields(logrus.Fields{
+				"action": "user::GetUser",
+				"userid": userid,
+				"error":  err.Error(),
+			}).Error("error storing user.")
+			return err
+		} else {
+			log.WithFields(logrus.Fields{
+				"action": "user::GetUser::Storage::Put",
+				"userid": userid,
+			}).Info("stored user.")
+		}
+	}
 	return nil
 }

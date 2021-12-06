@@ -10,6 +10,9 @@ type DatabaseDriver interface {
 	PutFollowersConfig(query *CursoredTweetConfigQuery) error
 	PutFriendsConfig(query *CursoredTweetConfigQuery) error
 	PutTimelineConfig(query *TweetConfigQuery) error
+	PutRunnerFlags(runnerName string, userid int64, flags Bits) error
+	GetRunnerUsers(runner string, userID int64) ([]*RunnerFlagsItem, error)
+	DeleteRunnerUser(runnerName string, userid int64) error
 }
 
 type TweetConfigQuery struct {

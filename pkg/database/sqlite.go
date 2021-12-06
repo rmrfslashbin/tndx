@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"errors"
 	"path"
 	"time"
 
@@ -162,4 +163,16 @@ func (config *SqliteDatabaseDriver) PutTimelineConfig(query *TweetConfigQuery) e
 	_, err = statement.Exec(query.UserID, query.SinceID, query.MaxID, now.UnixMilli(), query.SinceID, query.MaxID)
 	config.db.Close()
 	return err
+}
+
+func (config *SqliteDatabaseDriver) PutRunnerFlags(runnerName string, userid int64, flags Bits) error {
+	return errors.New("not implemented")
+}
+
+func (config *SqliteDatabaseDriver) GetRunnerUsers(runner string, userID int64) ([]*RunnerFlagsItem, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (config *SqliteDatabaseDriver) DeleteRunnerUser(runnerName string, userid int64) error {
+	return errors.New("not implemented")
 }

@@ -29,6 +29,13 @@ type cliFlags struct {
 	localRootPath  string
 	dotenvPath     string
 	qEntities      bool
+	runnerName     string
+	friends        bool
+	followers      bool
+	favorites      bool
+	timeline       bool
+	all            bool
+	none           bool
 }
 
 // service stores drivers and clients
@@ -72,6 +79,12 @@ var (
 		Use:   "user",
 		Short: "lookup user by userid or screenname",
 		Run: func(cmd *cobra.Command, args []string) {
+			if flags.userid == 0 && flags.screenname == "" {
+				cmd.Usage()
+				log.Fatal("Missing userid or screenname")
+				os.Exit(1)
+			}
+
 			if err := RunUserCmd(); err != nil {
 				log.Fatal(err)
 				os.Exit(1)
@@ -83,6 +96,12 @@ var (
 		Use:   "friends",
 		Short: "fetch the user's friends",
 		Run: func(cmd *cobra.Command, args []string) {
+			if flags.userid == 0 && flags.screenname == "" {
+				cmd.Usage()
+				log.Fatal("Missing userid or screenname")
+				os.Exit(1)
+			}
+
 			if err := RunFriendsCmd(); err != nil {
 				log.Fatal(err)
 				os.Exit(1)
@@ -94,6 +113,12 @@ var (
 		Use:   "followers",
 		Short: "fetch the user's followers",
 		Run: func(cmd *cobra.Command, args []string) {
+			if flags.userid == 0 && flags.screenname == "" {
+				cmd.Usage()
+				log.Fatal("Missing userid or screenname")
+				os.Exit(1)
+			}
+
 			if err := RunFollowersCmd(); err != nil {
 				log.Fatal(err)
 				os.Exit(1)
@@ -106,6 +131,12 @@ var (
 		Short: "fetch the user's favorites",
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := RunFavoritesCmd(); err != nil {
+				if flags.userid == 0 && flags.screenname == "" {
+					cmd.Usage()
+					log.Fatal("Missing userid or screenname")
+					os.Exit(1)
+				}
+
 				log.Fatal(err)
 				os.Exit(1)
 			}
@@ -116,6 +147,12 @@ var (
 		Use:   "timeline",
 		Short: "fetch the user's timeline",
 		Run: func(cmd *cobra.Command, args []string) {
+			if flags.userid == 0 && flags.screenname == "" {
+				cmd.Usage()
+				log.Fatal("Missing userid or screenname")
+				os.Exit(1)
+			}
+
 			if err := RunTimelineCmd(); err != nil {
 				log.Fatal(err)
 				os.Exit(1)
@@ -123,18 +160,89 @@ var (
 		},
 	}
 
-	/*
-		cmdEntities = &cobra.Command{
-			Use:   "entities",
-			Short: "fetch entities",
-			Run: func(cmd *cobra.Command, args []string) {
-				if err := RunEntitiesCmd(); err != nil {
-					log.Fatal(err)
+	cmdDDB = &cobra.Command{
+		Use:   "ddb",
+		Short: "dynamodb operations",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			if flags.databaseDriver != "ddb" {
+				cmd.Usage()
+				log.Fatal("database driver must be 'ddb' for DDB operations")
+				os.Exit(1)
+			}
+		},
+	}
+
+	cmdDDBRunner = &cobra.Command{
+		Use:   "runner",
+		Short: "dynamodb operations for runners",
+	}
+
+	cmdDDBRunnerSet = &cobra.Command{
+		Use:   "set",
+		Short: "configure a user to a runner",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			if flags.userid == 0 && flags.screenname == "" {
+				cmd.Usage()
+				log.Fatal("Missing userid or screenname")
+				os.Exit(1)
+			}
+
+			if flags.followers || flags.friends || flags.favorites || flags.timeline {
+				if flags.all {
+					cmd.Usage()
+					log.Fatal("all flag cannot be used with followers, friends, favorites or timeline")
 					os.Exit(1)
 				}
-			},
-		}
-	*/
+			}
+
+			if flags.all && flags.none {
+				cmd.Usage()
+				log.Fatal("all and none flags cannot be used together")
+				os.Exit(1)
+			}
+
+			setup(cmd)
+		},
+		Run: func(cmd *cobra.Command, args []string) {
+			if err := RunDDBRunnerSet(); err != nil {
+				log.Fatal(err)
+				os.Exit(1)
+			}
+		},
+	}
+
+	cmdDDBRunnerList = &cobra.Command{
+		Use:   "list",
+		Short: "list runners",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			setup(cmd)
+		},
+		Run: func(cmd *cobra.Command, args []string) {
+			if err := RunDDBRunnerList(); err != nil {
+				log.Fatal(err)
+				os.Exit(1)
+			}
+		},
+	}
+
+	cmdDDBRunnerDel = &cobra.Command{
+		Use:   "del",
+		Short: "delete a user from a runner",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			if flags.userid == 0 && flags.screenname == "" {
+				cmd.Usage()
+				log.Fatal("Missing userid or screenname")
+				os.Exit(1)
+			}
+			setup(cmd)
+		},
+		Run: func(cmd *cobra.Command, args []string) {
+			if err := RunDDBRunnerDel(); err != nil {
+				log.Fatal(err)
+				os.Exit(1)
+			}
+		},
+	}
 )
 
 // init sets up the CLI and flags
@@ -147,8 +255,6 @@ func init() {
 	})
 
 	RootCmd.PersistentFlags().StringVarP(&flags.loglevel, "loglevel", "", "info", "[error|warn|info|debug|trace]")
-	RootCmd.PersistentFlags().Int64VarP(&flags.userid, "userid", "", 0, "user id")
-	RootCmd.PersistentFlags().StringVarP(&flags.screenname, "screenname", "", "", "screen name")
 	RootCmd.PersistentFlags().StringVarP(&flags.storageDriver, "storage", "", "", "[local|s3]")
 	RootCmd.PersistentFlags().StringVarP(&flags.databaseDriver, "database", "", "", "[sqlite|ddb]")
 	RootCmd.PersistentFlags().StringVarP(&flags.localRootPath, "localrootpath", "", "./data", "local root path")
@@ -156,21 +262,48 @@ func init() {
 
 	cmdFriends.PersistentFlags().Int64VarP(&flags.nextCursor, "nextcursor", "", 0, "next cursor (to overrride database return)")
 	cmdFriends.PersistentFlags().BoolVarP(&flags.backwards, "backwards", "", false, "fetch backwards")
+	cmdFriends.PersistentFlags().Int64VarP(&flags.userid, "userid", "", 0, "user id")
+	cmdFriends.PersistentFlags().StringVarP(&flags.screenname, "screenname", "", "", "screen name")
 
 	cmdFollowers.PersistentFlags().Int64VarP(&flags.nextCursor, "nextcursor", "", 0, "next cursor (to overrride database return)")
 	cmdFollowers.PersistentFlags().BoolVarP(&flags.backwards, "backwards", "", false, "fetch backwards")
+	cmdFollowers.PersistentFlags().Int64VarP(&flags.userid, "userid", "", 0, "user id")
+	cmdFollowers.PersistentFlags().StringVarP(&flags.screenname, "screenname", "", "", "screen name")
 
 	cmdFavorites.PersistentFlags().Int64VarP(&flags.maxid, "maxid", "", 0, "max id (to overrride database return)")
 	cmdFavorites.PersistentFlags().Int64VarP(&flags.sinceid, "sinceid", "", 0, "since id (to overrride database return)")
 	cmdFavorites.PersistentFlags().BoolVarP(&flags.backwards, "backwards", "", false, "fetch backwards")
 	cmdFavorites.PersistentFlags().BoolVarP(&flags.qEntities, "queueentities", "", false, "send media entities to SQS")
+	cmdFavorites.PersistentFlags().Int64VarP(&flags.userid, "userid", "", 0, "user id")
+	cmdFavorites.PersistentFlags().StringVarP(&flags.screenname, "screenname", "", "", "screen name")
 
 	cmdTimeline.PersistentFlags().Int64VarP(&flags.maxid, "maxid", "", 0, "max id (to overrride database return)")
 	cmdTimeline.PersistentFlags().Int64VarP(&flags.sinceid, "sinceid", "", 0, "since id (to overrride database return)")
 	cmdTimeline.PersistentFlags().BoolVarP(&flags.backwards, "backwards", "", false, "fetch backwards")
 	cmdTimeline.PersistentFlags().BoolVarP(&flags.qEntities, "queueentities", "", false, "send media entities to SQS")
+	cmdTimeline.PersistentFlags().Int64VarP(&flags.userid, "userid", "", 0, "user id")
+	cmdTimeline.PersistentFlags().StringVarP(&flags.screenname, "screenname", "", "", "screen name")
 
-	//cmdEntities.PersistentFlags().BoolVarP(&flags.qEntities, "queueentities", "", false, "send media entities to SQS")
+	cmdDDBRunnerSet.PersistentFlags().StringVarP(&flags.runnerName, "runner", "", "", "runner name")
+	cmdDDBRunnerSet.PersistentFlags().Int64VarP(&flags.userid, "userid", "", 0, "user id")
+	cmdDDBRunnerSet.PersistentFlags().StringVarP(&flags.screenname, "screenname", "", "", "screen name")
+	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.favorites, "favorites", "", false, "favorites")
+	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.followers, "followers", "", false, "followers")
+	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.friends, "friends", "", false, "friends")
+	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.timeline, "timeline", "", false, "timeline")
+	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.all, "all", "", false, "set all (favorties, followers, friends, and timelien")
+	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.none, "none", "", false, "unset/disable runners")
+	cmdDDBRunnerSet.MarkPersistentFlagRequired("runner")
+
+	cmdDDBRunnerList.PersistentFlags().StringVarP(&flags.runnerName, "runner", "", "", "runner name")
+	cmdDDBRunnerList.PersistentFlags().Int64VarP(&flags.userid, "userid", "", 0, "user id")
+	cmdDDBRunnerList.PersistentFlags().StringVarP(&flags.screenname, "screenname", "", "", "screen name")
+	cmdDDBRunnerList.MarkPersistentFlagRequired("runner")
+
+	cmdDDBRunnerDel.PersistentFlags().StringVarP(&flags.runnerName, "runner", "", "", "runner name")
+	cmdDDBRunnerDel.PersistentFlags().Int64VarP(&flags.userid, "userid", "", 0, "user id")
+	cmdDDBRunnerDel.PersistentFlags().StringVarP(&flags.screenname, "screenname", "", "", "screen name")
+	cmdDDBRunnerDel.MarkPersistentFlagRequired("runner")
 
 	RootCmd.AddCommand(
 		cmdLookup,
@@ -178,7 +311,17 @@ func init() {
 		cmdFollowers,
 		cmdFavorites,
 		cmdTimeline,
-		//cmdEntities,
+		cmdDDB,
+	)
+
+	cmdDDB.AddCommand(
+		cmdDDBRunner,
+	)
+
+	cmdDDBRunner.AddCommand(
+		cmdDDBRunnerSet,
+		cmdDDBRunnerList,
+		cmdDDBRunnerDel,
 	)
 }
 
@@ -211,12 +354,6 @@ func setup(cmd *cobra.Command) {
 		os.Exit(1)
 	}
 
-	if flags.userid == 0 && flags.screenname == "" {
-		cmd.Usage()
-		log.Fatal("Missing userid or screenname")
-		os.Exit(1)
-	}
-
 	viper.SetConfigFile(flags.dotenvPath)
 	if err := viper.ReadInConfig(); err != nil {
 		log.Fatal(err)
@@ -227,6 +364,7 @@ func setup(cmd *cobra.Command) {
 	s3Bucket, _ := viper.Get("TNDX_S3_BUCKET_PARAM").(string)
 	s3Region, _ := viper.Get("TNDX_S3_REGION_PARAM").(string)
 	ddbTable, _ := viper.Get("TNDX_DDB_TABLE_PARAM").(string)
+	ddbRunnerTable, _ := viper.Get("TNDX_DDB_RUNNER_TABLE_PARAM").(string)
 	ddbRegion, _ := viper.Get("TNDX_DDB_REGION_PARAM").(string)
 
 	// awscli profile name
@@ -269,7 +407,7 @@ func setup(cmd *cobra.Command) {
 			database.SetSqliteLogger(log),
 		)
 	} else if flags.databaseDriver == "ddb" {
-		outputs, err := params.GetParams([]string{ddbTable, ddbRegion})
+		outputs, err := params.GetParams([]string{ddbTable, ddbRegion, ddbRunnerTable})
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -277,6 +415,7 @@ func setup(cmd *cobra.Command) {
 		svc.db = database.NewDDB(
 			database.SetDDBLogger(log),
 			database.SetDDBTable(outputs.Parameters[ddbTable].(string)),
+			database.SetDDBRunnerTable(outputs.Parameters[ddbRunnerTable].(string)),
 			database.SetDDBRegion(outputs.Parameters[ddbRegion].(string)),
 		)
 

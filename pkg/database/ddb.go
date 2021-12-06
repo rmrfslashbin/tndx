@@ -11,14 +11,17 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type Bits uint8
+
 type DDBOption func(config *SqliteDatabaseDriver)
 
 type DDBDriver struct {
-	log        *logrus.Logger
-	driverName string
-	table      string
-	region     string
-	db         *dynamodb.DynamoDB
+	log         *logrus.Logger
+	driverName  string
+	table       string
+	runnerTable string
+	region      string
+	db          *dynamodb.DynamoDB
 }
 
 type TweetsItem struct {
@@ -53,6 +56,20 @@ type FriendsItem struct {
 	LastUpdate     int64  `json:"lastupdate"`
 }
 
+type RunnerFlagsItem struct {
+	RunnerName string `json:"runnername"`
+	UserID     int64  `json:"userid"`
+	Flags      Bits   `json:"flags"`
+	LastUpdate int64  `json:"lastupdate"`
+}
+
+const (
+	F_favorites Bits = 1 << iota
+	F_followers
+	F_friends
+	F_timeline
+)
+
 func NewDDB(opts ...func(*DDBDriver)) *DDBDriver {
 	config := &DDBDriver{}
 	config.driverName = "ddb"
@@ -82,6 +99,12 @@ func SetDDBRegion(region string) func(*DDBDriver) {
 func SetDDBTable(table string) func(*DDBDriver) {
 	return func(config *DDBDriver) {
 		config.table = table
+	}
+}
+
+func SetDDBRunnerTable(table string) func(*DDBDriver) {
+	return func(config *DDBDriver) {
+		config.runnerTable = table
 	}
 }
 
@@ -316,4 +339,90 @@ func (config *DDBDriver) PutTimelineConfig(query *TweetConfigQuery) error {
 		return err
 	}
 	return nil
+}
+
+func (config *DDBDriver) PutRunnerFlags(runnerName string, userid int64, flags Bits) error {
+	now := time.Now()
+	item := &RunnerFlagsItem{
+		RunnerName: runnerName,
+		UserID:     userid,
+		Flags:      flags,
+		LastUpdate: now.UnixMilli(),
+	}
+	kvp, err := dynamodbattribute.MarshalMap(item)
+	if err != nil {
+		return err
+	}
+
+	input := &dynamodb.PutItemInput{
+		Item:      kvp,
+		TableName: aws.String(config.runnerTable),
+	}
+
+	_, err = config.db.PutItem(input)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (config *DDBDriver) GetRunnerUsers(runner string, userID int64) ([]*RunnerFlagsItem, error) {
+	var input *dynamodb.QueryInput
+	if userID == 0 {
+		input = &dynamodb.QueryInput{
+			ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+				":v1": {
+					S: aws.String(runner),
+				},
+			},
+			KeyConditionExpression: aws.String("runnername = :v1"),
+			TableName:              aws.String(config.runnerTable),
+		}
+	} else {
+		input = &dynamodb.QueryInput{
+			ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+				":v1": {
+					S: aws.String(runner),
+				},
+				":userid": {
+					N: aws.String(strconv.FormatInt(userID, 10)),
+				},
+			},
+			KeyConditionExpression: aws.String("runnername = :v1 and userid = :userid"),
+			TableName:              aws.String(config.runnerTable),
+		}
+	}
+
+	result, err := config.db.Query(input)
+	if err != nil {
+		return nil, err
+	}
+
+	results := []*RunnerFlagsItem{}
+	for _, i := range result.Items {
+		item := &RunnerFlagsItem{}
+		err = dynamodbattribute.UnmarshalMap(i, &item)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, item)
+	}
+
+	return results, nil
+}
+
+func (config *DDBDriver) DeleteRunnerUser(runnerName string, userid int64) error {
+	input := &dynamodb.DeleteItemInput{
+		Key: map[string]*dynamodb.AttributeValue{
+			"runnername": {
+				S: aws.String(runnerName),
+			},
+			"userid": {
+				N: aws.String(strconv.FormatInt(userid, 10)),
+			},
+		},
+		TableName: aws.String(config.runnerTable),
+	}
+	_, err := config.db.DeleteItem(input)
+	return err
 }
