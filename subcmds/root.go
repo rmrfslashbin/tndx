@@ -75,7 +75,7 @@ var (
 		},
 	}
 
-	cmdLookup = &cobra.Command{
+	cmdUser = &cobra.Command{
 		Use:   "user",
 		Short: "lookup user by userid or screenname",
 		Run: func(cmd *cobra.Command, args []string) {
@@ -255,8 +255,8 @@ func init() {
 	})
 
 	RootCmd.PersistentFlags().StringVarP(&flags.loglevel, "loglevel", "", "info", "[error|warn|info|debug|trace]")
-	RootCmd.PersistentFlags().StringVarP(&flags.storageDriver, "storage", "", "", "[local|s3]")
-	RootCmd.PersistentFlags().StringVarP(&flags.databaseDriver, "database", "", "", "[sqlite|ddb]")
+	RootCmd.PersistentFlags().StringVarP(&flags.storageDriver, "storage", "", "", "[local|s3|noop]")
+	RootCmd.PersistentFlags().StringVarP(&flags.databaseDriver, "database", "", "", "[sqlite|ddb|noop]")
 	RootCmd.PersistentFlags().StringVarP(&flags.localRootPath, "localrootpath", "", "./data", "local root path")
 	RootCmd.PersistentFlags().StringVarP(&flags.dotenvPath, "dotenv", "", "./.env", "dotenv path")
 
@@ -284,6 +284,9 @@ func init() {
 	cmdTimeline.PersistentFlags().Int64VarP(&flags.userid, "userid", "", 0, "user id")
 	cmdTimeline.PersistentFlags().StringVarP(&flags.screenname, "screenname", "", "", "screen name")
 
+	cmdUser.PersistentFlags().Int64VarP(&flags.userid, "userid", "", 0, "user id")
+	cmdUser.PersistentFlags().StringVarP(&flags.screenname, "screenname", "", "", "screen name")
+
 	cmdDDBRunnerSet.PersistentFlags().StringVarP(&flags.runnerName, "runner", "", "", "runner name")
 	cmdDDBRunnerSet.PersistentFlags().Int64VarP(&flags.userid, "userid", "", 0, "user id")
 	cmdDDBRunnerSet.PersistentFlags().StringVarP(&flags.screenname, "screenname", "", "", "screen name")
@@ -306,7 +309,7 @@ func init() {
 	cmdDDBRunnerDel.MarkPersistentFlagRequired("runner")
 
 	RootCmd.AddCommand(
-		cmdLookup,
+		cmdUser,
 		cmdFriends,
 		cmdFollowers,
 		cmdFavorites,
@@ -335,22 +338,24 @@ func setup(cmd *cobra.Command) {
 	validStorage := map[string]bool{
 		"local": true,
 		"s3":    true,
+		"noop":  true,
 	}
 
 	if _, ok := validStorage[flags.storageDriver]; !ok {
 		cmd.Usage()
-		log.Fatal("Invalid or missing storage driver. Should be 'local' or 's3'")
+		log.Fatal("Invalid or missing storage driver. Should be 'local', 's3', or 'noop'")
 		os.Exit(1)
 	}
 
 	validDatabase := map[string]bool{
 		"sqlite": true,
 		"ddb":    true,
+		"noop":   true,
 	}
 
 	if _, ok := validDatabase[flags.databaseDriver]; !ok {
 		cmd.Usage()
-		log.Fatal("Invalid or missing database driver. Should be 'sqlite' or 'ddb'")
+		log.Fatal("Invalid or missing database driver. Should be 'sqlite', 'ddb', or 'noop'")
 		os.Exit(1)
 	}
 
@@ -419,6 +424,10 @@ func setup(cmd *cobra.Command) {
 			database.SetDDBRegion(outputs.Parameters[ddbRegion].(string)),
 		)
 
+	} else if flags.databaseDriver == "noop" {
+		svc.db = database.NewNoopDB(
+			database.SetNoopDBLogger(log),
+		)
 	}
 
 	outputs, err := params.GetParams([]string{twitterApiKey, twitterApiSecret, s3Bucket, s3Region})
@@ -429,13 +438,15 @@ func setup(cmd *cobra.Command) {
 	var storageDriver storage.StorageDriver
 	if flags.storageDriver == "local" {
 		storageDriver = storage.NewLocalStorage(storage.SetRootPath(flags.localRootPath))
-	} else {
+	} else if flags.storageDriver == "s3" {
 
 		storageDriver = storage.NewS3Storage(
 			storage.SetS3Bucket(outputs.Parameters[s3Bucket].(string)),
 			storage.SetS3Region(outputs.Parameters[s3Region].(string)),
 		)
 
+	} else if flags.storageDriver == "noop" {
+		storageDriver = storage.NewNoopStorage()
 	}
 	svc.storage = storageDriver
 
