@@ -10,15 +10,32 @@ Globals:
   Function:
     Timeout: 60
 
+# More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+
 Resources:
   tndxFunction:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../bin/
+      CodeUri: ../bin/lambda
       Handler: bootstrap
       Runtime: provided.al2
       Architectures: [arm64]
       Role: !GetAtt FunctionRole.Arn
+  tndxSQSFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../bin/lambda-sqs
+      Handler: bootstrap
+      Runtime: provided.al2
+      Architectures: [arm64]
+      #Role: !GetAtt FunctionRole.Arn
+      Events:
+        tndxSQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt tndxRunnerQueue.Arn
+            Enabled: true
+
   tndxRunnerTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -34,6 +51,12 @@ Resources:
           KeyType: HASH
         - AttributeName: userid
           KeyType: RANGE
+  tndxRunnerQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: tndx-runner
+      KmsMasterKeyId: alias/aws/sqs
+      VisibilityTimeout: 60
 
   FunctionRole:
     Type: AWS::IAM::Role
