@@ -17,7 +17,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ../bin/lambda
-      Handler: lambda/bootstrap
+      Handler: bootstrap
       Runtime: provided.al2
       Architectures: [arm64]
       Role: !GetAtt FunctionRole.Arn
@@ -25,7 +25,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ../bin/lambda-sqs
-      Handler: lambda-sqs/bootstrap
+      Handler: bootstrap
       Runtime: provided.al2
       Architectures: [arm64]
       #Role: !GetAtt FunctionRole.Arn
