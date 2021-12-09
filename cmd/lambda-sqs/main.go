@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
+	"fmt"
+
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/sirupsen/logrus"
 )
 
@@ -31,13 +34,16 @@ func main() {
 			}).Fatal("main crashed")
 		}
 	}()
-	lambda.Start(HandleLambdaEvent)
+	lambda.Start(handler)
 }
 
-func HandleLambdaEvent(event Messages) (Response, error) {
-	spew.Dump(event)
+func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 
-	return Response{
-		Message: "All done!",
-	}, nil
+	for _, message := range sqsEvent.Records {
+		for i, mattr := range message.MessageAttributes {
+			fmt.Printf("%s: %s\n", i, *mattr.StringValue)
+		}
+	}
+
+	return nil
 }

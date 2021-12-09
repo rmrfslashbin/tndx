@@ -283,7 +283,7 @@ func favorites(userid int64) error {
 				url = tweets[t].Entities.Media[m].MediaURL
 			}
 			if url != "" {
-				if err := svc.queue.SendMessage(tweets[t].IDStr, url); err != nil {
+				if err := svc.queue.SendEntityMessage(tweets[t].IDStr, url); err != nil {
 					logrus.WithFields(logrus.Fields{
 						"action":  "favorites::queue::SendMessage",
 						"error":   err.Error(),
@@ -569,7 +569,7 @@ func timeline(userid int64) error {
 				url = tweets[t].Entities.Media[m].MediaURL
 			}
 			if url != "" {
-				if err := svc.queue.SendMessage(tweets[t].IDStr, url); err != nil {
+				if err := svc.queue.SendEntityMessage(tweets[t].IDStr, url); err != nil {
 					logrus.WithFields(logrus.Fields{
 						"action":  "timeline::queue::SendMessage",
 						"error":   err.Error(),

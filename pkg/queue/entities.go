@@ -4,77 +4,11 @@ import (
 	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/rmrfslashbin/tndx/pkg/utils"
-	"github.com/sirupsen/logrus"
 )
 
-type SSMParams struct {
-	EntityQueue      string `json:"entity_queue"`
-	S3Bucket         string `json:"s3_bucket"`
-	S3Region         string `json:"s3_region"`
-	DDBTable         string `json:"ddb_table"`
-	DDBRegion        string `json:"ddb_region"`
-	TwitterAPIKey    string `json:"twitter_api_key"`
-	TwitterAPISecret string `json:"twitter_api_secret"`
-}
-
-type Bootstrap struct {
-	Function  string    `json:"function"` // user, friends, followers, favorties, timeline, entities
-	Loglevel  string    `json:"loglevel"` // error, warn, info, debug, trace
-	UserID    int64     `json:"userid"`
-	SSMParams SSMParams `json:"ssm_params"`
-}
-
-type Option func(config *Config)
-
-// Configuration structure.
-type Config struct {
-	sqsQueueURL string
-	s3Bucket    string
-	log         *logrus.Logger
-	sqs         *sqs.SQS
-}
-
-func NewSQS(opts ...func(*Config)) *Config {
-	config := &Config{}
-
-	// apply the list of options to Config
-	for _, opt := range opts {
-		opt(config)
-	}
-
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-
-	// Create DynamoDB client
-	svc := sqs.New(sess)
-	config.sqs = svc
-
-	return config
-}
-
-func SetSQSURL(sqsQueueURL string) Option {
-	return func(config *Config) {
-		config.sqsQueueURL = sqsQueueURL
-	}
-}
-
-func SetS3Bucket(s3Bucket string) Option {
-	return func(config *Config) {
-		config.s3Bucket = s3Bucket
-	}
-}
-
-func SetLogger(log *logrus.Logger) Option {
-	return func(config *Config) {
-		config.log = log
-	}
-}
-
-func (config *Config) SendMessage(tweetId string, url string) error {
+func (config *Config) SendEntityMessage(tweetId string, url string) error {
 	_, err := config.sqs.SendMessage(&sqs.SendMessageInput{
 		DelaySeconds: aws.Int64(10),
 		MessageAttributes: map[string]*sqs.MessageAttributeValue{
@@ -112,6 +46,34 @@ func (config *Config) SendRunnerMessage(Bootstrap *Bootstrap) error {
 			"userid": &sqs.MessageAttributeValue{
 				DataType:    aws.String("Number"),
 				StringValue: aws.String(strconv.FormatInt(Bootstrap.UserID, 10)),
+			},
+			"entity_queue": &sqs.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(Bootstrap.Entity_queue),
+			},
+			"s3_bucket": &sqs.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(Bootstrap.S3_bucket),
+			},
+			"s3_region": &sqs.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(Bootstrap.S3_region),
+			},
+			"ddb_table": &sqs.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(Bootstrap.DDB_table),
+			},
+			"ddb_region": &sqs.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(Bootstrap.DDB_region),
+			},
+			"twitter_api_key": &sqs.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(Bootstrap.Twitter_api_key),
+			},
+			"twitter_api_secret": &sqs.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(Bootstrap.Twitter_api_secret),
 			},
 		},
 		MessageBody: aws.String("This is a test message."),
