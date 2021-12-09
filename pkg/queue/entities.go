@@ -1,12 +1,31 @@
 package queue
 
 import (
+	"strconv"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/rmrfslashbin/tndx/pkg/utils"
 	"github.com/sirupsen/logrus"
 )
+
+type SSMParams struct {
+	EntityQueue      string `json:"entity_queue"`
+	S3Bucket         string `json:"s3_bucket"`
+	S3Region         string `json:"s3_region"`
+	DDBTable         string `json:"ddb_table"`
+	DDBRegion        string `json:"ddb_region"`
+	TwitterAPIKey    string `json:"twitter_api_key"`
+	TwitterAPISecret string `json:"twitter_api_secret"`
+}
+
+type Bootstrap struct {
+	Function  string    `json:"function"` // user, friends, followers, favorties, timeline, entities
+	Loglevel  string    `json:"loglevel"` // error, warn, info, debug, trace
+	UserID    int64     `json:"userid"`
+	SSMParams SSMParams `json:"ssm_params"`
+}
 
 type Option func(config *Config)
 
@@ -70,6 +89,29 @@ func (config *Config) SendMessage(tweetId string, url string) error {
 			"bucket": &sqs.MessageAttributeValue{
 				DataType:    aws.String("String"),
 				StringValue: aws.String(config.s3Bucket),
+			},
+		},
+		MessageBody: aws.String("This is a test message."),
+		QueueUrl:    &config.sqsQueueURL,
+	})
+	return err
+}
+
+func (config *Config) SendRunnerMessage(Bootstrap *Bootstrap) error {
+	_, err := config.sqs.SendMessage(&sqs.SendMessageInput{
+		DelaySeconds: aws.Int64(10),
+		MessageAttributes: map[string]*sqs.MessageAttributeValue{
+			"function": &sqs.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(Bootstrap.Function),
+			},
+			"loglevel": &sqs.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(Bootstrap.Loglevel),
+			},
+			"userid": &sqs.MessageAttributeValue{
+				DataType:    aws.String("Number"),
+				StringValue: aws.String(strconv.FormatInt(Bootstrap.UserID, 10)),
 			},
 		},
 		MessageBody: aws.String("This is a test message."),
