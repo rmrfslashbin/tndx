@@ -13,7 +13,7 @@ import (
 
 type Bits uint8
 
-type DDBOption func(config *SqliteDatabaseDriver)
+type DDBOption func(config *DDBDriver)
 
 type DDBDriver struct {
 	log         *logrus.Logger
