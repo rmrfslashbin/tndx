@@ -39,11 +39,16 @@ func RunDDBRunnerSet() error {
 		newFlags = Set(newFlags, database.F_timeline)
 	}
 
+	if flags.user {
+		newFlags = Set(newFlags, database.F_user)
+	}
+
 	if flags.all {
 		newFlags = Set(newFlags, database.F_favorites)
 		newFlags = Set(newFlags, database.F_followers)
 		newFlags = Set(newFlags, database.F_friends)
 		newFlags = Set(newFlags, database.F_timeline)
+		newFlags = Set(newFlags, database.F_user)
 	}
 
 	logrus.WithFields(logrus.Fields{
@@ -56,6 +61,7 @@ func RunDDBRunnerSet() error {
 		"followers":   Has(newFlags, database.F_followers),
 		"friends":     Has(newFlags, database.F_friends),
 		"timeline":    Has(newFlags, database.F_timeline),
+		"user":        Has(newFlags, database.F_user),
 	}).Info("setting flags")
 
 	if err := svc.db.PutRunnerFlags(flags.runnerName, flags.userid, newFlags); err != nil {

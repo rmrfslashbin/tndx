@@ -63,11 +63,17 @@ type RunnerFlagsItem struct {
 	LastUpdate int64  `json:"lastupdate"`
 }
 
+type RunnerUsersInput struct {
+	RunnerName string `json:"runnername"`
+	UserID     int64  `json:"userid"`
+}
+
 const (
 	F_favorites Bits = 1 << iota
 	F_followers
 	F_friends
 	F_timeline
+	F_user
 )
 
 func NewDDB(opts ...func(*DDBDriver)) *DDBDriver {
@@ -366,26 +372,26 @@ func (config *DDBDriver) PutRunnerFlags(runnerName string, userid int64, flags B
 	return nil
 }
 
-func (config *DDBDriver) GetRunnerUsers(runner string, userID int64) ([]*RunnerFlagsItem, error) {
+func (config *DDBDriver) GetRunnerUsers(runnerUsers *RunnerUsersInput) ([]*RunnerFlagsItem, error) {
 	var input *dynamodb.QueryInput
-	if userID == 0 {
+	if runnerUsers.UserID == 0 {
 		input = &dynamodb.QueryInput{
 			ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
-				":v1": {
-					S: aws.String(runner),
+				":runnername": {
+					S: aws.String(runnerUsers.RunnerName),
 				},
 			},
-			KeyConditionExpression: aws.String("runnername = :v1"),
+			KeyConditionExpression: aws.String("runnername = :runnername"),
 			TableName:              aws.String(config.runnerTable),
 		}
 	} else {
 		input = &dynamodb.QueryInput{
 			ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
-				":v1": {
-					S: aws.String(runner),
+				":runnername": {
+					S: aws.String(runnerUsers.RunnerName),
 				},
 				":userid": {
-					N: aws.String(strconv.FormatInt(userID, 10)),
+					N: aws.String(strconv.FormatInt(runnerUsers.UserID, 10)),
 				},
 			},
 			KeyConditionExpression: aws.String("runnername = :v1 and userid = :userid"),

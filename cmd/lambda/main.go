@@ -28,7 +28,7 @@ type SSMParams struct {
 }
 
 type Bootstrap struct {
-	Function  string    `json:"function"` // user, friends, followers, favorties, timeline, entities
+	Function  string    `json:"function"` // user, friends, followers, favorties, timeline, entities, user
 	Loglevel  string    `json:"loglevel"` // error, warn, info, debug, trace
 	UserID    int64     `json:"userid"`
 	SSMParams SSMParams `json:"ssm_params"`

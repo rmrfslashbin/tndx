@@ -67,7 +67,7 @@ func (config *NoopDBDriver) PutRunnerFlags(runnerName string, userid int64, flag
 	return nil
 }
 
-func (config *NoopDBDriver) GetRunnerUsers(runner string, userID int64) ([]*RunnerFlagsItem, error) {
+func (config *NoopDBDriver) GetRunnerUsers(runnerUser *RunnerUsersInput) ([]*RunnerFlagsItem, error) {
 	return nil, nil
 }
 

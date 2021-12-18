@@ -34,6 +34,7 @@ type cliFlags struct {
 	followers      bool
 	favorites      bool
 	timeline       bool
+	user           bool
 	all            bool
 	none           bool
 }
@@ -187,10 +188,10 @@ var (
 				os.Exit(1)
 			}
 
-			if flags.followers || flags.friends || flags.favorites || flags.timeline {
+			if flags.followers || flags.friends || flags.favorites || flags.timeline || flags.user {
 				if flags.all {
 					cmd.Usage()
-					log.Fatal("all flag cannot be used with followers, friends, favorites or timeline")
+					log.Fatal("all flag cannot be used with followers, friends, favorites, timeline, or user")
 					os.Exit(1)
 				}
 			}
@@ -294,7 +295,8 @@ func init() {
 	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.followers, "followers", "", false, "followers")
 	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.friends, "friends", "", false, "friends")
 	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.timeline, "timeline", "", false, "timeline")
-	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.all, "all", "", false, "set all (favorties, followers, friends, and timelien")
+	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.timeline, "user", "", false, "user")
+	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.all, "all", "", false, "set all (favorties, followers, friends, timeline, and user")
 	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.none, "none", "", false, "unset/disable runners")
 	cmdDDBRunnerSet.MarkPersistentFlagRequired("runner")
 
@@ -412,11 +414,12 @@ func setup(cmd *cobra.Command) {
 			database.SetSqliteLogger(log),
 		)
 	} else if flags.databaseDriver == "ddb" {
+		fmt.Println("Setup", []string{ddbTable, ddbRegion, ddbRunnerTable})
 		outputs, err := params.GetParams([]string{ddbTable, ddbRegion, ddbRunnerTable})
 		if err != nil {
 			log.Fatal(err)
 		}
-
+		fmt.Println("Setup2")
 		svc.db = database.NewDDB(
 			database.SetDDBLogger(log),
 			database.SetDDBTable(outputs.Parameters[ddbTable].(string)),

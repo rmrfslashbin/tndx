@@ -81,7 +81,16 @@ Resources:
           Input: !Sub |
             {
               "runnername": "tndx-rmrfslashbin-01",
-              "function": "timeline"
+              "function": "timeline",
+              "ddbregion": "us-east-1",
+              "ddbrunnertable": "tndx-runners",
+              "sqsrunnerurl": "/tndx/sqs/runner/url",
+              "sqsentityurl": "/tndx/sqs/entity/url",
+              "s3bucket": "/tndx/s3/bucket",
+              "s3region": "/tndx/s3/region",
+              "ddbtable": "/tndx/ddb/table",
+              "twitter_api_key": "/tndx/twitter/tndx/api/key",
+              "twitter_api_secret": "/tndx/twitter/tndx/api/secret",
             }
 
   PermissionForEventsToInvokeTndxRunnerLambda:

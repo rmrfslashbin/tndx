@@ -22,7 +22,10 @@ func RunDDBRunnerList() error {
 		flags.userid = user.ID
 	}
 
-	res, err := svc.db.GetRunnerUsers(flags.runnerName, flags.userid)
+	res, err := svc.db.GetRunnerUsers(&database.RunnerUsersInput{
+		RunnerName: flags.runnerName,
+		UserID:     flags.userid,
+	})
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"action": "RunDDBRunnerList",
