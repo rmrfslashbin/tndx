@@ -21,6 +21,16 @@ Resources:
       Runtime: provided.al2
       Architectures: [arm64]
       Role: !GetAtt FunctionRole.Arn
+
+  tndxRunnerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../bin/lambda-runner
+      Handler: bootstrap
+      Runtime: provided.al2
+      Architectures: [arm64]
+      Role: !GetAtt FunctionRole.Arn
+
   tndxSQSFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -51,12 +61,39 @@ Resources:
           KeyType: HASH
         - AttributeName: userid
           KeyType: RANGE
+
   tndxRunnerQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: tndx-runner
       KmsMasterKeyId: alias/aws/sqs
       VisibilityTimeout: 60
+
+  tndxRunnerEvent:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Run a tndx runner
+      ScheduleExpression: "rate(1 minute)" # 5 minutes
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt tndxRunnerFunction.Arn
+          Id: tndxRunnerFunction
+          Input: !Sub |
+            {
+              "runnername": "tndx-rmrfslashbin-01",
+              "function": "timeline"
+            }
+
+  PermissionForEventsToInvokeTndxRunnerLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref "tndxRunnerFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn:
+        Fn::GetAtt:
+          - "tndxRunnerEvent"
+          - "Arn"
 
   FunctionRole:
     Type: AWS::IAM::Role

@@ -49,6 +49,7 @@ cfdeploy: lambda-build
 lambda-build:
 	GOOS=linux GOARCH=arm64 go build -o bin/lambda/bootstrap cmd/lambda/main.go
 	GOOS=linux GOARCH=arm64 go build -o bin/lambda-sqs/bootstrap cmd/lambda-sqs/main.go
+	GOOS=linux GOARCH=arm64 go build -o bin/lambda-runner/bootstrap cmd/lambda-runner/main.go
 
 cfdescribe:
 	aws cloudformation describe-stack-events --stack-name $(stack_name)
