@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/rmrfslashbin/tndx/pkg/database"
 	"github.com/rmrfslashbin/tndx/pkg/queue"
 	"github.com/sirupsen/logrus"
@@ -51,6 +52,7 @@ func main() {
 }
 
 func handler(ctx context.Context, message Message) error {
+	spew.Dump(message)
 	outputs, err := getParams([]*string{
 		&message.DDBRegion,
 		&message.DDBRunnerTable,
@@ -62,6 +64,7 @@ func handler(ctx context.Context, message Message) error {
 		&message.TwitterAPIKey,
 		&message.TwitterAPISecret,
 	})
+	spew.Dump(outputs)
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"action": "getParams",

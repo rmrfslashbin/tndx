@@ -82,15 +82,15 @@ Resources:
             {
               "runnername": "tndx-rmrfslashbin-01",
               "function": "timeline",
-              "ddbregion": "us-east-1",
-              "ddbrunnertable": "tndx-runners",
+              "ddbregion": "/tndx/ddb/region",
+              "ddbrunnertable": "/tndx/ddb/runner/table",
               "sqsrunnerurl": "/tndx/sqs/runner/url",
-              "sqsentityurl": "/tndx/sqs/entity/url",
+              "sqsentityurl": "/tndx/sqs/entities/url",
               "s3bucket": "/tndx/s3/bucket",
               "s3region": "/tndx/s3/region",
               "ddbtable": "/tndx/ddb/table",
               "twitter_api_key": "/tndx/twitter/tndx/api/key",
-              "twitter_api_secret": "/tndx/twitter/tndx/api/secret",
+              "twitter_api_secret": "/tndx/twitter/tndx/api/secret"
             }
 
   PermissionForEventsToInvokeTndxRunnerLambda:
@@ -99,10 +99,7 @@ Resources:
       FunctionName: !Ref "tndxRunnerFunction"
       Action: "lambda:InvokeFunction"
       Principal: "events.amazonaws.com"
-      SourceArn:
-        Fn::GetAtt:
-          - "tndxRunnerEvent"
-          - "Arn"
+      SourceArn: !GetAtt tndxRunnerEvent.Arn
 
   FunctionRole:
     Type: AWS::IAM::Role
@@ -147,7 +144,9 @@ Resources:
                 Action:
                   - sqs:SendMessage
                   - sqs:ReceiveMessage
-                Resource: "arn:aws:sqs:us-east-1:150319663043:tndx-entities"
+                Resource:
+                  - "arn:aws:sqs:us-east-1:150319663043:tndx-entities"
+                  - !GetAtt tndxRunnerQueue.Arn
               - Effect: Allow
                 Action:
                   - ssm:GetParameter
@@ -160,6 +159,7 @@ Resources:
                 Action:
                   - dynamodb:GetItem
                   - dynamodb:PutItem
+                  - dynamodb:Query
                 Resource:
                   - "arn:aws:dynamodb:us-east-1:150319663043:table/tndx"
                   - !GetAtt tndxRunnerTable.Arn
