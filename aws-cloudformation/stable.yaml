@@ -1,0 +1,134 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  tndx-us-east-2-test-stack
+
+  The Twitter ndx
+
+Parameters:
+  AppName:
+    Type: String
+    Default: tndx
+    Description: Application/stack name.
+
+  DDBParamTable:
+    Type: String
+    Default: tndx-parameters
+    Description: DDD table to store parameters.
+
+  DDBRunnerTable:
+    Type: String
+    Default: tndx-runner
+    Description: DDD runner table.
+
+  Environment:
+    Type: String
+    Default: staging
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment for deployment.
+
+  Region:
+    Type: String
+    Default: us-east-2
+    AllowedValues:
+      - us-east-1
+      - us-east-2
+      - us-west-1
+      - us-west-2
+    Description: The AWS region for deployment.
+
+  S3BucketName:
+    Type: String
+    Default: is-tndx-us-east-2
+    Description: Priamry S3 bucket.
+
+  SQSName:
+    Type: String
+    Default: tndx-runner
+    Description: Priamry S3 bucket.
+
+Globals:
+  Function:
+    Timeout: 60
+
+Resources:
+  ParameterDDBParams:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tndx/ddb/parameters
+      Type: String
+      Value: { Ref: DDBParamTable }
+      Description: tndx ddb parameters table
+      Tags:
+        Environment: { Ref: Environment }
+        Application: { Ref: AppName }
+
+  ParameterDDBRunner:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tndx/ddb/runner
+      Type: String
+      Value: { Ref: DDBRunnerTable }
+      Description: tndx ddb parameters table
+      Tags:
+        Environment: { Ref: Environment }
+        Application: { Ref: AppName }
+
+  ParameterRegion:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tndx/region
+      Type: String
+      Value: { Ref: Region }
+      Description: tndx region
+      Tags:
+        Environment: { Ref: Environment }
+        Application: { Ref: AppName }
+
+  ParameterS3Bucket:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tndx/s3/bucket
+      Type: String
+      Value: { Ref: S3Bucket }
+      Description: tndx S3 Bucket
+      Tags:
+        Environment: { Ref: Environment }
+        Application: { Ref: AppName }
+
+  ParameterSQSRunner:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tndx/sqs/runner/url
+      Type: String
+      Value: { Ref: SQSTndxRunner }
+      Description: SQS Runner URL
+      Tags:
+        Environment: { Ref: Environment }
+        Application: { Ref: AppName }
+
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      BucketName: { Ref: S3BucketName }
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  SQSTndxRunner:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: { Ref: SQSName }
+      KmsMasterKeyId: alias/aws/sqs
+      VisibilityTimeout: 60
