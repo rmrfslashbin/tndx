@@ -69,10 +69,6 @@ func main() {
 func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 
 	for _, message := range sqsEvent.Records {
-		log.WithFields(logrus.Fields{
-			"message": message,
-		}).Info("processing message")
-
 		userId, err := strconv.ParseInt(*message.MessageAttributes["userid"].StringValue, 10, 64)
 		if err != nil {
 			logrus.WithFields(logrus.Fields{
@@ -81,10 +77,6 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 			}).Error("error parsing userid")
 			return err
 		}
-
-		log.WithFields(logrus.Fields{
-			"userId": userId,
-		}).Info("got userId")
 
 		runnerFunction := RunnerFunction{
 			Function:         message.MessageAttributes["function"].StringValue,
@@ -99,36 +91,28 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 			UserID:           userId,
 		}
 
-		log.WithFields(logrus.Fields{
-			"runnerFunction": runnerFunction,
-		}).Info("setup runnerFunction")
-
 		svc.queue = queue.NewSQS(
 			queue.SetLogger(log),
 			queue.SetSQSURL("https://sqs.us-east-1.amazonaws.com/150319663043/tndx-runner"),
 			queue.SetS3Bucket(*runnerFunction.S3Bucket),
 		)
-		log.Info("setup queue")
 
 		svc.db = database.NewDDB(
 			database.SetDDBLogger(log),
 			database.SetDDBTable(*runnerFunction.DDBTable),
 			database.SetDDBRegion(*runnerFunction.DDBRegion),
 		)
-		log.Info("setup database")
 
 		svc.storage = storage.NewS3Storage(
 			storage.SetS3Bucket(*runnerFunction.S3Bucket),
 			storage.SetS3Region(*runnerFunction.S3Region),
 		)
-		log.Info("setup storage")
 
 		svc.twitterClient = service.New(
 			service.SetConsumerKey(*runnerFunction.TwitterAPIKey),
 			service.SetConsumerSecret(*runnerFunction.TwitterAPISecret),
 			service.SetLogger(log),
 		)
-		log.Info("setup twitter client")
 
 		bootstrap := &queue.Bootstrap{
 			S3_bucket:          *runnerFunction.S3Bucket,
@@ -138,10 +122,6 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 			Twitter_api_key:    *runnerFunction.TwitterAPIKey,
 			Twitter_api_secret: *runnerFunction.TwitterAPISecret,
 		}
-
-		log.WithFields(logrus.Fields{
-			"bootstrap": bootstrap,
-		}).Info("setup bootstrap")
 
 		switch *runnerFunction.Function {
 		case "entities":
