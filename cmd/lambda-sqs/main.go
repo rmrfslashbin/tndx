@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"path"
 	"strconv"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -31,12 +33,13 @@ type RunnerFunction struct {
 	Function         *string `json:"function"`
 	DDBRegion        *string `json:"ddb_region"`
 	DDBTable         *string `json:"ddb_table"`
-	SQSEntityURL     *string `json:"sqs_entity_url"`
 	S3Bucket         *string `json:"s3_bucket"`
 	S3Region         *string `json:"s3_region"`
 	TwitterAPIKey    *string `json:"twitter_api_key"`
 	TwitterAPISecret *string `json:"twitter_api_secret"`
 	UserID           int64   `json:"userid"`
+	TweetId          *string `json:"tweetid"`
+	EntiryURL        *string `json:"entity_url"`
 }
 
 var (
@@ -66,6 +69,10 @@ func main() {
 func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 
 	for _, message := range sqsEvent.Records {
+		log.WithFields(logrus.Fields{
+			"message": message,
+		}).Info("processing message")
+
 		userId, err := strconv.ParseInt(*message.MessageAttributes["userid"].StringValue, 10, 64)
 		if err != nil {
 			logrus.WithFields(logrus.Fields{
@@ -74,43 +81,80 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 			}).Error("error parsing userid")
 			return err
 		}
-		runnerFunction := &RunnerFunction{
+
+		log.WithFields(logrus.Fields{
+			"userId": userId,
+		}).Info("got userId")
+
+		runnerFunction := RunnerFunction{
 			Function:         message.MessageAttributes["function"].StringValue,
 			DDBRegion:        message.MessageAttributes["ddb_region"].StringValue,
 			DDBTable:         message.MessageAttributes["ddb_table"].StringValue,
-			SQSEntityURL:     message.MessageAttributes["sqs_entity_url"].StringValue,
 			S3Bucket:         message.MessageAttributes["s3_bucket"].StringValue,
 			S3Region:         message.MessageAttributes["s3_region"].StringValue,
 			TwitterAPIKey:    message.MessageAttributes["twitter_api_key"].StringValue,
 			TwitterAPISecret: message.MessageAttributes["twitter_api_secret"].StringValue,
+			TweetId:          message.MessageAttributes["tweetid"].StringValue,
+			EntiryURL:        message.MessageAttributes["entity_url"].StringValue,
 			UserID:           userId,
 		}
 
+		log.WithFields(logrus.Fields{
+			"runnerFunction": runnerFunction,
+		}).Info("setup runnerFunction")
+
 		svc.queue = queue.NewSQS(
 			queue.SetLogger(log),
-			queue.SetSQSURL(*runnerFunction.SQSEntityURL),
+			queue.SetSQSURL("https://sqs.us-east-1.amazonaws.com/150319663043/tndx-runner"),
 			queue.SetS3Bucket(*runnerFunction.S3Bucket),
 		)
+		log.Info("setup queue")
 
 		svc.db = database.NewDDB(
 			database.SetDDBLogger(log),
 			database.SetDDBTable(*runnerFunction.DDBTable),
 			database.SetDDBRegion(*runnerFunction.DDBRegion),
 		)
+		log.Info("setup database")
 
 		svc.storage = storage.NewS3Storage(
 			storage.SetS3Bucket(*runnerFunction.S3Bucket),
 			storage.SetS3Region(*runnerFunction.S3Region),
 		)
+		log.Info("setup storage")
 
 		svc.twitterClient = service.New(
 			service.SetConsumerKey(*runnerFunction.TwitterAPIKey),
 			service.SetConsumerSecret(*runnerFunction.TwitterAPISecret),
 			service.SetLogger(log),
 		)
+		log.Info("setup twitter client")
+
+		bootstrap := &queue.Bootstrap{
+			S3_bucket:          *runnerFunction.S3Bucket,
+			S3_region:          *runnerFunction.S3Region,
+			DDB_table:          *runnerFunction.DDBTable,
+			DDB_region:         *runnerFunction.DDBRegion,
+			Twitter_api_key:    *runnerFunction.TwitterAPIKey,
+			Twitter_api_secret: *runnerFunction.TwitterAPISecret,
+		}
+
+		log.WithFields(logrus.Fields{
+			"bootstrap": bootstrap,
+		}).Info("setup bootstrap")
+
 		switch *runnerFunction.Function {
+		case "entities":
+			if err := entities(runnerFunction.TweetId, runnerFunction.EntiryURL); err != nil {
+				logrus.WithFields(logrus.Fields{
+					"function": "entities",
+					"error":    err,
+				}).Error("function failed")
+				return err
+			}
+
 		case "favorites":
-			if err := favorites(runnerFunction.UserID); err != nil {
+			if err := favorites(runnerFunction.UserID, bootstrap); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"function": "favorites",
 					"error":    err,
@@ -137,7 +181,7 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 			}
 
 		case "timeline":
-			if err := timeline(runnerFunction.UserID); err != nil {
+			if err := timeline(runnerFunction.UserID, bootstrap); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"function": "timeline",
 					"error":    err,
@@ -154,11 +198,6 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 				return err
 			}
 
-		case "entities":
-			logrus.WithFields(logrus.Fields{
-				"function": "entities",
-			}).Info("Entities could be processed here.")
-
 		default:
 			logrus.WithFields(logrus.Fields{
 				"function": *runnerFunction.Function,
@@ -170,7 +209,29 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 	return nil
 }
 
-func favorites(userid int64) error {
+func entities(tweetId *string, entityURL *string) error {
+	resp, err := http.Get(*entityURL)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	filenameParts := strings.Split(*entityURL, "/")
+	key := fmt.Sprintf("media/%s/%s", *tweetId, filenameParts[len(filenameParts)-1])
+
+	if err := svc.storage.PutStream(key, resp.Body); err != nil {
+		return err
+	}
+
+	log.WithFields(logrus.Fields{
+		"action":    "entites",
+		"tweetId":   tweetId,
+		"entityURL": entityURL,
+	}).Info("fetched and put entity")
+	return nil
+}
+
+func favorites(userid int64, bootstrap *queue.Bootstrap) error {
 	favConfig, err := svc.db.GetFavoritesConfig(userid)
 	if err != nil {
 		log.WithFields(logrus.Fields{
@@ -228,9 +289,13 @@ func favorites(userid int64) error {
 				url = tweets[t].Entities.Media[m].MediaURL
 			}
 			if url != "" {
-				if err := svc.queue.SendEntityMessage(tweets[t].IDStr, url); err != nil {
+				bootstrap.Function = "entities"
+				bootstrap.TweetId = tweets[t].IDStr
+				bootstrap.EntiryURL = url
+
+				if err := svc.queue.SendRunnerMessage(bootstrap); err != nil {
 					logrus.WithFields(logrus.Fields{
-						"action":  "favorites::queue::SendMessage",
+						"action":  "favorites::queue::SendRunnerMessage",
 						"error":   err.Error(),
 						"userid":  userid,
 						"tweetId": tweets[t].ID,
@@ -456,7 +521,7 @@ func getParams(paramNames []*string) (map[string]interface{}, error) {
 
 }
 
-func timeline(userid int64) error {
+func timeline(userid int64, bootstrap *queue.Bootstrap) error {
 	timelineConfig, err := svc.db.GetTimelineConfig(userid)
 	if err != nil {
 		log.WithFields(logrus.Fields{
@@ -514,7 +579,11 @@ func timeline(userid int64) error {
 				url = tweets[t].Entities.Media[m].MediaURL
 			}
 			if url != "" {
-				if err := svc.queue.SendEntityMessage(tweets[t].IDStr, url); err != nil {
+				bootstrap.Function = "entities"
+				bootstrap.TweetId = tweets[t].IDStr
+				bootstrap.EntiryURL = url
+
+				if err := svc.queue.SendRunnerMessage(bootstrap); err != nil {
 					logrus.WithFields(logrus.Fields{
 						"action":  "timeline::queue::SendMessage",
 						"error":   err.Error(),

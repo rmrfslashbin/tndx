@@ -51,17 +51,17 @@ Resources:
               Resource: "arn:aws:s3:::is-tndx/*"
             - Effect: Allow
               Action:
-                - sqs:SendMessage
-                - sqs:ReceiveMessage
-              Resource:
-                - "arn:aws:sqs:us-east-1:150319663043:tndx-entities"
-            - Effect: Allow
-              Action:
                 - dynamodb:GetItem
                 - dynamodb:PutItem
                 - dynamodb:Query
               Resource:
                 - "arn:aws:dynamodb:us-east-1:150319663043:table/tndx"
+            - Effect: Allow
+              Action:
+                - sqs:SendMessage
+                - sqs:ReceiveMessage
+              Resource:
+                - !GetAtt tndxRunnerQueue.Arn
       Events:
         tndxSQSEvent:
           Type: SQS
@@ -109,7 +109,6 @@ Resources:
               "ddb_region": "/tndx/ddb/region",
               "ddb_runner_table": "/tndx/ddb/runner/table",
               "sqs_runner_url": "/tndx/sqs/runner/url",
-              "sqs_entity_url": "/tndx/sqs/entities/url",
               "s3_bucket": "/tndx/s3/bucket",
               "s3_region": "/tndx/s3/region",
               "ddb_table": "/tndx/ddb/table",
@@ -169,7 +168,6 @@ Resources:
                   - sqs:SendMessage
                   - sqs:ReceiveMessage
                 Resource:
-                  - "arn:aws:sqs:us-east-1:150319663043:tndx-entities"
                   - !GetAtt tndxRunnerQueue.Arn
               - Effect: Allow
                 Action:

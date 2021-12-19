@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"compress/gzip"
+	"io"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -80,6 +81,30 @@ func (config *S3StorageDriver) Put(key string, body []byte) error {
 	_, err = uploader.Upload(upParams)
 	return err
 	// return result, err
+}
+
+func (config *S3StorageDriver) PutStream(key string, fp io.Reader) error {
+	// *s3manager.UploadOutput
+
+	// The session the S3 Uploader will use
+	// Specify profile for config and region for requests.
+	s3Session := session.Must(session.NewSessionWithOptions(session.Options{
+		Config: aws.Config{Region: aws.String(config.s3Region)},
+	}))
+
+	// Create an uploader with the session and default options.
+	uploader := s3manager.NewUploader(s3Session)
+
+	// Upload input parameters
+	upParams := &s3manager.UploadInput{
+		Bucket: &config.s3Bucket,
+		Key:    &key,
+		Body:   fp,
+	}
+
+	// Perform an upload.
+	_, err := uploader.Upload(upParams)
+	return err
 }
 
 func (config *S3StorageDriver) GetDriverName() string {

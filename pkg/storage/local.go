@@ -2,6 +2,8 @@ package storage
 
 import (
 	"compress/gzip"
+	"errors"
+	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -85,6 +87,10 @@ func (config *LocalStorageDriver) Put(key string, body []byte) error {
 	}
 
 	return err
+}
+
+func (config *LocalStorageDriver) PutStream(key string, fp io.Reader) error {
+	return errors.New("not implemented")
 }
 
 func (config *LocalStorageDriver) GetDriverName() string {

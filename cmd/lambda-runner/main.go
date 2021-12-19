@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/rmrfslashbin/tndx/pkg/database"
 	"github.com/rmrfslashbin/tndx/pkg/queue"
 	"github.com/sirupsen/logrus"
@@ -26,7 +25,6 @@ type Message struct {
 	DDBTable         string `json:"ddb_table"`
 	DDBRunnerTable   string `json:"ddb_runner_table"`
 	SQSRunnerURL     string `json:"sqs_runner_url"`
-	SQSEntityURL     string `json:"sqs_entity_url"`
 	S3Bucket         string `json:"s3_bucket"`
 	S3Region         string `json:"s3_region"`
 	TwitterAPIKey    string `json:"twitter_api_key"`
@@ -58,7 +56,6 @@ func handler(ctx context.Context, message Message) error {
 		&message.DDBRunnerTable,
 		&message.DDBTable,
 		&message.SQSRunnerURL,
-		&message.SQSEntityURL,
 		&message.S3Bucket,
 		&message.S3Region,
 		&message.TwitterAPIKey,
@@ -93,16 +90,16 @@ func handler(ctx context.Context, message Message) error {
 	}
 
 	bootstrap := &queue.Bootstrap{
-		Loglevel:           message.Loglevel,
-		Entity_queue:       outputs[message.SQSEntityURL].(string),
 		S3_bucket:          outputs[message.S3Bucket].(string),
 		S3_region:          outputs[message.S3Region].(string),
 		DDB_table:          outputs[message.DDBTable].(string),
 		DDB_region:         outputs[message.DDBRegion].(string),
 		Twitter_api_key:    outputs[message.TwitterAPIKey].(string),
 		Twitter_api_secret: outputs[message.TwitterAPISecret].(string),
+		EntiryURL:          "void", // Not needed for this stage
+		UserID:             0,      // Not needed for this stage
+		TweetId:            "void", // Not needed for this stage
 	}
-	spew.Dump(bootstrap)
 
 	switch message.Function {
 	case "favorites":
@@ -117,6 +114,9 @@ func handler(ctx context.Context, message Message) error {
 					}).Error("error sending runner message.")
 					return err
 				}
+				log.WithFields(logrus.Fields{
+					"bootstrap": bootstrap,
+				}).Info("favorites sent.")
 			}
 		}
 
@@ -132,6 +132,9 @@ func handler(ctx context.Context, message Message) error {
 					}).Error("error sending runner message.")
 					return err
 				}
+				log.WithFields(logrus.Fields{
+					"bootstrap": bootstrap,
+				}).Info("followers sent.")
 			}
 		}
 	case "friends":
@@ -146,6 +149,9 @@ func handler(ctx context.Context, message Message) error {
 					}).Error("error sending runner message.")
 					return err
 				}
+				log.WithFields(logrus.Fields{
+					"bootstrap": bootstrap,
+				}).Info("friends sent.")
 			}
 		}
 	case "timeline":
@@ -160,6 +166,9 @@ func handler(ctx context.Context, message Message) error {
 					}).Error("error sending runner message.")
 					return err
 				}
+				log.WithFields(logrus.Fields{
+					"bootstrap": bootstrap,
+				}).Info("timeline sent.")
 			}
 		}
 	case "user":
@@ -174,6 +183,9 @@ func handler(ctx context.Context, message Message) error {
 					}).Error("error sending runner message.")
 					return err
 				}
+				log.WithFields(logrus.Fields{
+					"bootstrap": bootstrap,
+				}).Info("user sent.")
 			}
 		}
 	default:
