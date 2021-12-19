@@ -1,5 +1,7 @@
 package storage
 
+import "io"
+
 type NoopOption func(c *LocalStorageDriver)
 
 type NoopStorageDriver struct {
@@ -19,6 +21,10 @@ func NewNoopStorage(opts ...func(*NoopStorageDriver)) *NoopStorageDriver {
 }
 
 func (config *NoopStorageDriver) Put(name string, body []byte) error {
+	return nil
+}
+
+func (config *NoopStorageDriver) PutStream(key string, fp io.Reader) error {
 	return nil
 }
 

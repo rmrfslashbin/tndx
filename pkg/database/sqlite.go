@@ -169,7 +169,7 @@ func (config *SqliteDatabaseDriver) PutRunnerFlags(runnerName string, userid int
 	return errors.New("not implemented")
 }
 
-func (config *SqliteDatabaseDriver) GetRunnerUsers(runner string, userID int64) ([]*RunnerFlagsItem, error) {
+func (config *SqliteDatabaseDriver) GetRunnerUsers(runnerUser *RunnerUsersInput) ([]*RunnerFlagsItem, error) {
 	return nil, errors.New("not implemented")
 }
 

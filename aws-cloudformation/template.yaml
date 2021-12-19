@@ -10,15 +10,60 @@ Globals:
   Function:
     Timeout: 60
 
+# More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+
 Resources:
-  tndxFunction:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+  tndxRunnerFunction:
+    Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../bin/
+      CodeUri: ../bin/lambda-runner
       Handler: bootstrap
       Runtime: provided.al2
       Architectures: [arm64]
       Role: !GetAtt FunctionRole.Arn
+
+  tndxSQSFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../bin/lambda-sqs
+      Handler: bootstrap
+      Runtime: provided.al2
+      Architectures: [arm64]
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:ListBucket
+              Resource: "arn:aws:s3:::is-tndx"
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+              Resource: "arn:aws:s3:::is-tndx/*"
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:Query
+              Resource:
+                - "arn:aws:dynamodb:us-east-1:150319663043:table/tndx"
+            - Effect: Allow
+              Action:
+                - sqs:SendMessage
+                - sqs:ReceiveMessage
+              Resource:
+                - !GetAtt tndxRunnerQueue.Arn
+            - Effect: Allow
+              Action:
+                - "ssm:GetParameter*"
+              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tndx*"
+      Events:
+        tndxSQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt tndxRunnerQueue.Arn
+            Enabled: true
+
   tndxRunnerTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -34,6 +79,173 @@ Resources:
           KeyType: HASH
         - AttributeName: userid
           KeyType: RANGE
+
+  tndxRunnerQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: tndx-runner
+      KmsMasterKeyId: alias/aws/sqs
+      VisibilityTimeout: 60
+
+  tndxRunnerFavoriteEvent:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Run a tndx runner for favorites
+      ScheduleExpression: "rate(30 minutes)"
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt tndxRunnerFunction.Arn
+          Id: tndxRunnerFunction
+          Input: !Sub |
+            {
+              "runner_name": "tndx-rmrfslashbin-01",
+              "loglevel": "info",
+              "function": "favorites",
+              "ddb_region": "/tndx/ddb/region",
+              "ddb_runner_table": "/tndx/ddb/runner/table",
+              "sqs_runner_url": "/tndx/sqs/runner/url",
+              "s3_bucket": "/tndx/s3/bucket",
+              "s3_region": "/tndx/s3/region",
+              "ddb_table": "/tndx/ddb/table",
+              "twitter_api_key": "/tndx/twitter/tndx/api/key",
+              "twitter_api_secret": "/tndx/twitter/tndx/api/secret"
+            }
+
+  tndxRunnerFriendsEvent:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Run a tndx runner for friends
+      ScheduleExpression: "rate(30 minutes)"
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt tndxRunnerFunction.Arn
+          Id: tndxRunnerFunction
+          Input: !Sub |
+            {
+              "runner_name": "tndx-rmrfslashbin-01",
+              "loglevel": "info",
+              "function": "friends",
+              "ddb_region": "/tndx/ddb/region",
+              "ddb_runner_table": "/tndx/ddb/runner/table",
+              "sqs_runner_url": "/tndx/sqs/runner/url",
+              "s3_bucket": "/tndx/s3/bucket",
+              "s3_region": "/tndx/s3/region",
+              "ddb_table": "/tndx/ddb/table",
+              "twitter_api_key": "/tndx/twitter/tndx/api/key",
+              "twitter_api_secret": "/tndx/twitter/tndx/api/secret"
+            }
+
+  tndxRunnerFollowersEvent:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Run a tndx runner for friends
+      ScheduleExpression: "rate(30 minutes)"
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt tndxRunnerFunction.Arn
+          Id: tndxRunnerFunction
+          Input: !Sub |
+            {
+              "runner_name": "tndx-rmrfslashbin-01",
+              "loglevel": "info",
+              "function": "followers",
+              "ddb_region": "/tndx/ddb/region",
+              "ddb_runner_table": "/tndx/ddb/runner/table",
+              "sqs_runner_url": "/tndx/sqs/runner/url",
+              "s3_bucket": "/tndx/s3/bucket",
+              "s3_region": "/tndx/s3/region",
+              "ddb_table": "/tndx/ddb/table",
+              "twitter_api_key": "/tndx/twitter/tndx/api/key",
+              "twitter_api_secret": "/tndx/twitter/tndx/api/secret"
+            }
+
+  tndxRunnerTimelineEvent:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Run a tndx runner for timeline
+      ScheduleExpression: "rate(5 minutes)"
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt tndxRunnerFunction.Arn
+          Id: tndxRunnerFunction
+          Input: !Sub |
+            {
+              "runner_name": "tndx-rmrfslashbin-01",
+              "loglevel": "info",
+              "function": "timeline",
+              "ddb_region": "/tndx/ddb/region",
+              "ddb_runner_table": "/tndx/ddb/runner/table",
+              "sqs_runner_url": "/tndx/sqs/runner/url",
+              "s3_bucket": "/tndx/s3/bucket",
+              "s3_region": "/tndx/s3/region",
+              "ddb_table": "/tndx/ddb/table",
+              "twitter_api_key": "/tndx/twitter/tndx/api/key",
+              "twitter_api_secret": "/tndx/twitter/tndx/api/secret"
+            }
+
+  tndxRunnerUserEvent:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Run a tndx runner for timeline
+      ScheduleExpression: "rate(12 hours)"
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt tndxRunnerFunction.Arn
+          Id: tndxRunnerFunction
+          Input: !Sub |
+            {
+              "runner_name": "tndx-rmrfslashbin-01",
+              "loglevel": "info",
+              "function": "user",
+              "ddb_region": "/tndx/ddb/region",
+              "ddb_runner_table": "/tndx/ddb/runner/table",
+              "sqs_runner_url": "/tndx/sqs/runner/url",
+              "s3_bucket": "/tndx/s3/bucket",
+              "s3_region": "/tndx/s3/region",
+              "ddb_table": "/tndx/ddb/table",
+              "twitter_api_key": "/tndx/twitter/tndx/api/key",
+              "twitter_api_secret": "/tndx/twitter/tndx/api/secret"
+            }
+
+  PermissionForEventsToInvokeTndxRunnerFriendsLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref "tndxRunnerFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt tndxRunnerFriendsEvent.Arn
+
+  PermissionForEventsToInvokeTndxRunnerFavoritesLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref "tndxRunnerFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt tndxRunnerFavoriteEvent.Arn
+
+  PermissionForEventsToInvokeTndxRunnerFollowersLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref "tndxRunnerFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt tndxRunnerFollowersEvent.Arn
+
+  PermissionForEventsToInvokeTndxRunnerTimelineLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref "tndxRunnerFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt tndxRunnerTimelineEvent.Arn
+
+  PermissionForEventsToInvokeTndxRunnerUserLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref "tndxRunnerFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt tndxRunnerUserEvent.Arn
 
   FunctionRole:
     Type: AWS::IAM::Role
@@ -78,7 +290,8 @@ Resources:
                 Action:
                   - sqs:SendMessage
                   - sqs:ReceiveMessage
-                Resource: "arn:aws:sqs:us-east-1:150319663043:tndx-entities"
+                Resource:
+                  - !GetAtt tndxRunnerQueue.Arn
               - Effect: Allow
                 Action:
                   - ssm:GetParameter
@@ -91,6 +304,7 @@ Resources:
                 Action:
                   - dynamodb:GetItem
                   - dynamodb:PutItem
+                  - dynamodb:Query
                 Resource:
                   - "arn:aws:dynamodb:us-east-1:150319663043:table/tndx"
                   - !GetAtt tndxRunnerTable.Arn

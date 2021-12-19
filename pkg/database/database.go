@@ -11,7 +11,7 @@ type DatabaseDriver interface {
 	PutFriendsConfig(query *CursoredTweetConfigQuery) error
 	PutTimelineConfig(query *TweetConfigQuery) error
 	PutRunnerFlags(runnerName string, userid int64, flags Bits) error
-	GetRunnerUsers(runner string, userID int64) ([]*RunnerFlagsItem, error)
+	GetRunnerUsers(runnerUser *RunnerUsersInput) ([]*RunnerFlagsItem, error)
 	DeleteRunnerUser(runnerName string, userid int64) error
 }
 
