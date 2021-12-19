@@ -12,8 +12,6 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/rmrfslashbin/tndx/pkg/database"
 	"github.com/rmrfslashbin/tndx/pkg/queue"
 	"github.com/rmrfslashbin/tndx/pkg/service"
@@ -475,30 +473,6 @@ func friends(userid int64) error {
 	}).Info("finished getting friends")
 
 	return nil
-}
-
-func getParams(paramNames []*string) (map[string]interface{}, error) {
-	s := ssm.New(session.Must(session.NewSession()))
-	// Create a SSM client with additional configuration
-	//svc := ssm.New(mySession, aws.NewConfig().WithRegion("us-west-2"))
-
-	ret, err := s.GetParameters(&ssm.GetParametersInput{
-		Names: paramNames,
-	})
-	if err != nil {
-		log.WithFields(logrus.Fields{
-			"action": "ssmparams::GetParameters",
-			"error":  err.Error(),
-		}).Error("error getting parameters.")
-		return nil, err
-	}
-	output := make(map[string]interface{})
-
-	for _, v := range ret.Parameters {
-		output[*v.Name] = *v.Value
-	}
-	return output, nil
-
 }
 
 func timeline(userid int64, bootstrap *queue.Bootstrap) error {
