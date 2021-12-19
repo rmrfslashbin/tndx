@@ -19,15 +19,16 @@ var (
 )
 
 type Message struct {
-	RunnerName       string `json:"runnername"`
+	RunnerName       string `json:"runner_name"`
+	Loglevel         string `json:"loglevel"`
 	Function         string `json:"function"`
-	DDBRegion        string `json:"ddbregion"`
-	DDBTable         string `json:"ddbtable"`
-	DDBRunnerTable   string `json:"ddbrunnertable"`
-	SQSRunnerURL     string `json:"sqsrunnerurl"`
-	SQSEntityURL     string `json:"sqsentityurl"`
-	S3Bucket         string `json:"s3bucket"`
-	S3Region         string `json:"s3region"`
+	DDBRegion        string `json:"ddb_region"`
+	DDBTable         string `json:"ddb_table"`
+	DDBRunnerTable   string `json:"ddb_runner_table"`
+	SQSRunnerURL     string `json:"sqs_runner_url"`
+	SQSEntityURL     string `json:"sqs_entity_url"`
+	S3Bucket         string `json:"s3_bucket"`
+	S3Region         string `json:"s3_region"`
 	TwitterAPIKey    string `json:"twitter_api_key"`
 	TwitterAPISecret string `json:"twitter_api_secret"`
 }
@@ -52,7 +53,6 @@ func main() {
 }
 
 func handler(ctx context.Context, message Message) error {
-	spew.Dump(message)
 	outputs, err := getParams([]*string{
 		&message.DDBRegion,
 		&message.DDBRunnerTable,
@@ -64,7 +64,6 @@ func handler(ctx context.Context, message Message) error {
 		&message.TwitterAPIKey,
 		&message.TwitterAPISecret,
 	})
-	spew.Dump(outputs)
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"action": "getParams",
@@ -94,7 +93,7 @@ func handler(ctx context.Context, message Message) error {
 	}
 
 	bootstrap := &queue.Bootstrap{
-		Loglevel:           "info",
+		Loglevel:           message.Loglevel,
 		Entity_queue:       outputs[message.SQSEntityURL].(string),
 		S3_bucket:          outputs[message.S3Bucket].(string),
 		S3_region:          outputs[message.S3Region].(string),
@@ -103,6 +102,7 @@ func handler(ctx context.Context, message Message) error {
 		Twitter_api_key:    outputs[message.TwitterAPIKey].(string),
 		Twitter_api_secret: outputs[message.TwitterAPISecret].(string),
 	}
+	spew.Dump(bootstrap)
 
 	switch message.Function {
 	case "favorites":

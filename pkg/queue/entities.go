@@ -47,7 +47,7 @@ func (config *Config) SendRunnerMessage(Bootstrap *Bootstrap) error {
 				DataType:    aws.String("Number"),
 				StringValue: aws.String(strconv.FormatInt(Bootstrap.UserID, 10)),
 			},
-			"entity_queue": &sqs.MessageAttributeValue{
+			"sqs_entity_url": &sqs.MessageAttributeValue{
 				DataType:    aws.String("String"),
 				StringValue: aws.String(Bootstrap.Entity_queue),
 			},
