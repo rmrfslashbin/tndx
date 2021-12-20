@@ -6,22 +6,22 @@ Description: >
   The Twitter ndx
 
 Parameters:
-  AppName:
+  ParamAppName:
     Type: String
     Default: tndx
     Description: Application/stack name.
 
-  DDBParamTable:
+  ParamDDBParamTable:
     Type: String
     Default: tndx-parameters
     Description: DDD table to store parameters.
 
-  DDBRunnerTable:
+  ParamDDBRunnerTable:
     Type: String
     Default: tndx-runner
     Description: DDD runner table.
 
-  Environment:
+  ParamEnvironment:
     Type: String
     Default: staging
     AllowedValues:
@@ -30,7 +30,7 @@ Parameters:
       - prod
     Description: Environment for deployment.
 
-  Region:
+  ParamRegion:
     Type: String
     Default: us-east-2
     AllowedValues:
@@ -38,7 +38,7 @@ Parameters:
       - us-east-2
       - us-west-1
       - us-west-2
-    Description: The AWS region for deployment.
+    Description: The AWS Region for deployment.
 
   S3BucketName:
     Type: String
@@ -50,43 +50,109 @@ Parameters:
     Default: tndx-runner
     Description: Priamry S3 bucket.
 
+  TwitterAPIKey:
+    Type: String
+    Default: your-twitter-api-key
+    Description: Twitter API key.
+
+  TwitterAPISecret:
+    Type: String
+    Default: your-twitter-api-secret
+    Description: Twitter API secret.
+
 Globals:
   Function:
     Timeout: 60
 
 Resources:
+  DDBParametersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref ParamDDBParamTable
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userid
+          AttributeType: N
+        - AttributeName: domain
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userid
+          KeyType: HASH
+        - AttributeName: domain
+          KeyType: RANGE
+      Tags:
+        - Key: "Environment"
+          Value: { Ref: ParamEnvironment }
+        - Key: "Application"
+          Value: { Ref: ParamAppName }
+
+  DDBRunnerTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref ParamDDBRunnerTable
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: runnername
+          AttributeType: S
+        - AttributeName: userid
+          AttributeType: N
+      KeySchema:
+        - AttributeName: runnername
+          KeyType: HASH
+        - AttributeName: userid
+          KeyType: RANGE
+      Tags:
+        - Key: "Environment"
+          Value: { Ref: ParamEnvironment }
+        - Key: "Application"
+          Value: { Ref: ParamAppName }
+
+  FunctionTndxRunner:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Runner function
+      FunctionName: !Sub ${ParamAppName}-runner-${ParamEnvironment}
+      CodeUri: ../bin/lambda-runner
+      Handler: bootstrap
+      Runtime: provided.al2
+      Architectures: [arm64]
+      Role: !GetAtt RoleLambdaExecution.Arn
+      Tags:
+        Environment: { Ref: ParamEnvironment }
+        Application: { Ref: ParamAppName }
+
   ParameterDDBParams:
     Type: AWS::SSM::Parameter
     Properties:
       Name: /tndx/ddb/parameters
       Type: String
-      Value: { Ref: DDBParamTable }
+      Value: { Ref: ParamDDBParamTable }
       Description: tndx ddb parameters table
       Tags:
-        Environment: { Ref: Environment }
-        Application: { Ref: AppName }
+        Environment: { Ref: ParamEnvironment }
+        Application: { Ref: ParamAppName }
 
   ParameterDDBRunner:
     Type: AWS::SSM::Parameter
     Properties:
       Name: /tndx/ddb/runner
       Type: String
-      Value: { Ref: DDBRunnerTable }
+      Value: { Ref: ParamDDBRunnerTable }
       Description: tndx ddb parameters table
       Tags:
-        Environment: { Ref: Environment }
-        Application: { Ref: AppName }
+        Environment: { Ref: ParamEnvironment }
+        Application: { Ref: ParamAppName }
 
   ParameterRegion:
     Type: AWS::SSM::Parameter
     Properties:
       Name: /tndx/region
       Type: String
-      Value: { Ref: Region }
+      Value: { Ref: ParamRegion }
       Description: tndx region
       Tags:
-        Environment: { Ref: Environment }
-        Application: { Ref: AppName }
+        Environment: { Ref: ParamEnvironment }
+        Application: { Ref: ParamAppName }
 
   ParameterS3Bucket:
     Type: AWS::SSM::Parameter
@@ -96,8 +162,8 @@ Resources:
       Value: { Ref: S3Bucket }
       Description: tndx S3 Bucket
       Tags:
-        Environment: { Ref: Environment }
-        Application: { Ref: AppName }
+        Environment: { Ref: ParamEnvironment }
+        Application: { Ref: ParamAppName }
 
   ParameterSQSRunner:
     Type: AWS::SSM::Parameter
@@ -107,8 +173,120 @@ Resources:
       Value: { Ref: SQSTndxRunner }
       Description: SQS Runner URL
       Tags:
-        Environment: { Ref: Environment }
-        Application: { Ref: AppName }
+        nvironment: { Ref: ParamEnvironment }
+        Application: { Ref: ParamAppName }
+
+  ParameterTwitterAPIKey:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tndx/twitter/api/key
+      Type: String
+      Value: { Ref: TwitterAPIKey }
+      Description: Twitter API Key
+      Tags:
+        Environment: { Ref: ParamEnvironment }
+        Application: { Ref: ParamAppName }
+
+  ParameterTwitterAPISecret:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tndx/twitter/api/secret
+      Type: String
+      Value: { Ref: TwitterAPISecret }
+      Description: Twitter API Secret
+      Tags:
+        Environment: { Ref: ParamEnvironment }
+        Application: { Ref: ParamAppName }
+
+  PolicyTndxDDBAccess:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "TndxDDBAccess"
+      Roles:
+        - !Ref RoleLambdaExecution
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:Query
+            Resource:
+              - !GetAtt DDBParametersTable.Arn
+              - !GetAtt DDBRunnerTable.Arn
+
+  PolicyTndxS3Access:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "TndxS3Access"
+      Roles:
+        - !Ref RoleLambdaExecution
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource: !Sub
+              - arn:aws:s3:::${Bucket}
+              - { Bucket: !Ref S3BucketName }
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+            Resource: !Sub
+              - arn:aws:s3:::${Bucket}/*
+              - { Bucket: !Ref S3BucketName }
+
+  PolicyTndxSQSAccess:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "TndxSQSAccess"
+      Roles:
+        - !Ref RoleLambdaExecution
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - sqs:SendMessage
+              - sqs:ReceiveMessage
+            Resource:
+              - !GetAtt SQSTndxRunner.Arn
+
+  PolicyTndxSSMAccess:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "TndxParameterStoreAccess"
+      Roles:
+        - !Ref RoleLambdaExecution
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "ssm:GetParameter*"
+            Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tndx*"
+
+  RoleLambdaExecution:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Tags:
+        - Key: "Environment"
+          Value: { Ref: ParamEnvironment }
+        - Key: "Application"
+          Value: { Ref: ParamAppName }
 
   S3Bucket:
     Type: AWS::S3::Bucket
@@ -125,6 +303,11 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      Tags:
+        - Key: "Environment"
+          Value: { Ref: ParamEnvironment }
+        - Key: "Application"
+          Value: { Ref: ParamAppName }
 
   SQSTndxRunner:
     Type: AWS::SQS::Queue
@@ -132,3 +315,40 @@ Resources:
       QueueName: { Ref: SQSName }
       KmsMasterKeyId: alias/aws/sqs
       VisibilityTimeout: 60
+      Tags:
+        - Key: "Environment"
+          Value: { Ref: ParamEnvironment }
+        - Key: "Application"
+          Value: { Ref: ParamAppName }
+
+  EventTndxRunnerTimeline:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Run a tndx runner for timeline
+      ScheduleExpression: "rate(5 minutes)"
+      State: DISABLED
+      Targets:
+        - Arn: !GetAtt FunctionTndxRunner.Arn
+          Id: TargetFunctionTndxRunner
+          Input: !Sub |
+            {
+              "runner_name": "tndx-rmrfslashbin-01",
+              "loglevel": "info",
+              "function": "timeline",
+              "ddb_region": "/tndx/ddb/region",
+              "ddb_runner_table": "/tndx/ddb/runner/table",
+              "sqs_runner_url": "/tndx/sqs/runner/url",
+              "s3_bucket": "/tndx/s3/bucket",
+              "s3_region": "/tndx/s3/region",
+              "ddb_table": "/tndx/ddb/table",
+              "twitter_api_key": "/tndx/twitter/tndx/api/key",
+              "twitter_api_secret": "/tndx/twitter/tndx/api/secret"
+            }
+
+  PermissionForEventsToInvokeFunctionTndxRunnerTimeline:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref FunctionTndxRunner
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt EventTndxRunnerTimeline.Arn

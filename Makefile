@@ -3,7 +3,7 @@
 PROJECT := tndx
 SYSTEM := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 MACHINE := $(shell uname -m | tr '[:upper:]' '[:lower:]')
-deploy_bucket = aws-sam-cli-managed-default-samclisourcebucket-1cgv746ppjbj9
+deploy_bucket = is-us-east-2-deployment
 stack_name = $(PROJECT)
 
 
