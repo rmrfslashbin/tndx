@@ -63,14 +63,14 @@ func (config *NoopDBDriver) PutTimelineConfig(query *TweetConfigQuery) error {
 	return nil
 }
 
-func (config *NoopDBDriver) PutRunnerFlags(runnerName string, userid int64, flags Bits) error {
+func (config *NoopDBDriver) PutRunnerFlags(params *RunnerFlagsItem) error {
 	return nil
 }
 
-func (config *NoopDBDriver) GetRunnerUsers(runnerUser *RunnerUsersInput) ([]*RunnerFlagsItem, error) {
+func (config *NoopDBDriver) GetRunnerUsers(runnerUser *RunnerFlagsItem) ([]*RunnerFlagsItem, error) {
 	return nil, nil
 }
 
-func (config *NoopDBDriver) DeleteRunnerUser(runnerName string, userid int64) error {
+func (config *NoopDBDriver) DeleteRunnerUser(params *RunnerFlagsItem) error {
 	return nil
 }

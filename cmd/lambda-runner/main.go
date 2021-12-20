@@ -80,7 +80,7 @@ func handler(ctx context.Context, message Message) error {
 		queue.SetSQSURL(outputs[message.SQSRunnerURL].(string)),
 	)
 
-	users, err := db.GetRunnerUsers(&database.RunnerUsersInput{RunnerName: message.RunnerName})
+	users, err := db.GetRunnerUsers(&database.RunnerFlagsItem{RunnerName: message.RunnerName})
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"action": "getRunnerUsers",

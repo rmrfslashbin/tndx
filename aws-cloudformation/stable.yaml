@@ -92,14 +92,14 @@ Resources:
       TableName: !Ref ParamDDBRunnerTable
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
-        - AttributeName: runnername
+        - AttributeName: RunnerName
           AttributeType: S
-        - AttributeName: userid
+        - AttributeName: UserID
           AttributeType: N
       KeySchema:
-        - AttributeName: runnername
+        - AttributeName: RunnerName
           KeyType: HASH
-        - AttributeName: userid
+        - AttributeName: UserID
           KeyType: RANGE
       Tags:
         - Key: "Environment"
