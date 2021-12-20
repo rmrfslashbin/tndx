@@ -29,14 +29,6 @@ type cliFlags struct {
 	localRootPath  string
 	dotenvPath     string
 	qEntities      bool
-	runnerName     string
-	friends        bool
-	followers      bool
-	favorites      bool
-	timeline       bool
-	user           bool
-	all            bool
-	none           bool
 }
 
 // service stores drivers and clients
@@ -160,90 +152,6 @@ var (
 			}
 		},
 	}
-
-	cmdDDB = &cobra.Command{
-		Use:   "ddb",
-		Short: "dynamodb operations",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			if flags.databaseDriver != "ddb" {
-				cmd.Usage()
-				log.Fatal("database driver must be 'ddb' for DDB operations")
-				os.Exit(1)
-			}
-		},
-	}
-
-	cmdDDBRunner = &cobra.Command{
-		Use:   "runner",
-		Short: "dynamodb operations for runners",
-	}
-
-	cmdDDBRunnerSet = &cobra.Command{
-		Use:   "set",
-		Short: "configure a user to a runner",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			if flags.userid == 0 && flags.screenname == "" {
-				cmd.Usage()
-				log.Fatal("Missing userid or screenname")
-				os.Exit(1)
-			}
-
-			if flags.followers || flags.friends || flags.favorites || flags.timeline || flags.user {
-				if flags.all {
-					cmd.Usage()
-					log.Fatal("all flag cannot be used with followers, friends, favorites, timeline, or user")
-					os.Exit(1)
-				}
-			}
-
-			if flags.all && flags.none {
-				cmd.Usage()
-				log.Fatal("all and none flags cannot be used together")
-				os.Exit(1)
-			}
-
-			setup(cmd)
-		},
-		Run: func(cmd *cobra.Command, args []string) {
-			if err := RunDDBRunnerSet(); err != nil {
-				log.Fatal(err)
-				os.Exit(1)
-			}
-		},
-	}
-
-	cmdDDBRunnerList = &cobra.Command{
-		Use:   "list",
-		Short: "list runners",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			setup(cmd)
-		},
-		Run: func(cmd *cobra.Command, args []string) {
-			if err := RunDDBRunnerList(); err != nil {
-				log.Fatal(err)
-				os.Exit(1)
-			}
-		},
-	}
-
-	cmdDDBRunnerDel = &cobra.Command{
-		Use:   "del",
-		Short: "delete a user from a runner",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			if flags.userid == 0 && flags.screenname == "" {
-				cmd.Usage()
-				log.Fatal("Missing userid or screenname")
-				os.Exit(1)
-			}
-			setup(cmd)
-		},
-		Run: func(cmd *cobra.Command, args []string) {
-			if err := RunDDBRunnerDel(); err != nil {
-				log.Fatal(err)
-				os.Exit(1)
-			}
-		},
-	}
 )
 
 // init sets up the CLI and flags
@@ -288,45 +196,12 @@ func init() {
 	cmdUser.PersistentFlags().Int64VarP(&flags.userid, "userid", "", 0, "user id")
 	cmdUser.PersistentFlags().StringVarP(&flags.screenname, "screenname", "", "", "screen name")
 
-	cmdDDBRunnerSet.PersistentFlags().StringVarP(&flags.runnerName, "runner", "", "", "runner name")
-	cmdDDBRunnerSet.PersistentFlags().Int64VarP(&flags.userid, "userid", "", 0, "user id")
-	cmdDDBRunnerSet.PersistentFlags().StringVarP(&flags.screenname, "screenname", "", "", "screen name")
-	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.favorites, "favorites", "", false, "favorites")
-	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.followers, "followers", "", false, "followers")
-	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.friends, "friends", "", false, "friends")
-	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.timeline, "timeline", "", false, "timeline")
-	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.timeline, "user", "", false, "user")
-	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.all, "all", "", false, "set all (favorties, followers, friends, timeline, and user")
-	cmdDDBRunnerSet.PersistentFlags().BoolVarP(&flags.none, "none", "", false, "unset/disable runners")
-	cmdDDBRunnerSet.MarkPersistentFlagRequired("runner")
-
-	cmdDDBRunnerList.PersistentFlags().StringVarP(&flags.runnerName, "runner", "", "", "runner name")
-	cmdDDBRunnerList.PersistentFlags().Int64VarP(&flags.userid, "userid", "", 0, "user id")
-	cmdDDBRunnerList.PersistentFlags().StringVarP(&flags.screenname, "screenname", "", "", "screen name")
-	cmdDDBRunnerList.MarkPersistentFlagRequired("runner")
-
-	cmdDDBRunnerDel.PersistentFlags().StringVarP(&flags.runnerName, "runner", "", "", "runner name")
-	cmdDDBRunnerDel.PersistentFlags().Int64VarP(&flags.userid, "userid", "", 0, "user id")
-	cmdDDBRunnerDel.PersistentFlags().StringVarP(&flags.screenname, "screenname", "", "", "screen name")
-	cmdDDBRunnerDel.MarkPersistentFlagRequired("runner")
-
 	RootCmd.AddCommand(
 		cmdUser,
 		cmdFriends,
 		cmdFollowers,
 		cmdFavorites,
 		cmdTimeline,
-		cmdDDB,
-	)
-
-	cmdDDB.AddCommand(
-		cmdDDBRunner,
-	)
-
-	cmdDDBRunner.AddCommand(
-		cmdDDBRunnerSet,
-		cmdDDBRunnerList,
-		cmdDDBRunnerDel,
 	)
 }
 
