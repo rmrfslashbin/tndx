@@ -56,7 +56,7 @@ func RunRunnerSet() error {
 		newFlags = database.Set(newFlags, database.F_user)
 	}
 
-	if err := svc.db.PutRunnerFlags(&database.RunnerFlagsItem{RunnerName: flags.runner, UserID: flags.userid, Flags: newFlags}); err != nil {
+	if err := svc.db.PutRunnerFlags(&database.RunnerItem{RunnerName: flags.runner, UserID: flags.userid, Flags: newFlags}); err != nil {
 		log.WithFields(logrus.Fields{
 			"action": "RunRunnerSet::PutRunnerFlags",
 			"error":  err.Error(),

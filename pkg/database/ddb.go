@@ -58,7 +58,7 @@ type FriendsItem struct {
 	LastUpdate     int64  `json:"lastupdate"`
 }
 
-type RunnerFlagsItem struct {
+type RunnerItem struct {
 	RunnerName string `json:"runnername"`
 	UserID     int64  `json:"userid"`
 	Flags      Bits   `json:"flags"`
@@ -124,7 +124,7 @@ func SetDDBLogger(logger *logrus.Logger) func(*DDBDriver) {
 	}
 }
 
-func (config *DDBDriver) DeleteRunnerUser(params *RunnerFlagsItem) error {
+func (config *DDBDriver) DeleteRunnerUser(params *RunnerItem) error {
 	input := &dynamodb.DeleteItemInput{
 		TableName: aws.String(config.runnerTable),
 		Key: map[string]types.AttributeValue{
@@ -220,7 +220,7 @@ func (config *DDBDriver) GetFriendsConfig(userID int64) (*CursoredTweetConfigQue
 	return item, nil
 }
 
-func (config *DDBDriver) GetRunnerUsers(runnerUsers *RunnerFlagsItem) ([]*RunnerFlagsItem, error) {
+func (config *DDBDriver) GetRunnerUsers(runnerUsers *RunnerItem) ([]*RunnerItem, error) {
 	var input *dynamodb.QueryInput
 
 	if runnerUsers.UserID == 0 {
@@ -248,7 +248,7 @@ func (config *DDBDriver) GetRunnerUsers(runnerUsers *RunnerFlagsItem) ([]*Runner
 		return nil, err
 	}
 
-	results := []*RunnerFlagsItem{}
+	results := []*RunnerItem{}
 	attributevalue.UnmarshalListOfMaps(result.Items, &results)
 
 	return results, nil
@@ -369,9 +369,9 @@ func (config *DDBDriver) PutTimelineConfig(query *TweetConfigQuery) error {
 	return nil
 }
 
-func (config *DDBDriver) PutRunnerFlags(params *RunnerFlagsItem) error {
+func (config *DDBDriver) PutRunnerFlags(params *RunnerItem) error {
 	now := time.Now()
-	kvp, err := attributevalue.MarshalMap(&RunnerFlagsItem{
+	kvp, err := attributevalue.MarshalMap(&RunnerItem{
 		RunnerName: params.RunnerName,
 		UserID:     params.UserID,
 		Flags:      params.Flags,

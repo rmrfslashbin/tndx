@@ -165,14 +165,14 @@ func (config *SqliteDatabaseDriver) PutTimelineConfig(query *TweetConfigQuery) e
 	return err
 }
 
-func (config *SqliteDatabaseDriver) PutRunnerFlags(params *RunnerFlagsItem) error {
+func (config *SqliteDatabaseDriver) PutRunnerFlags(params *RunnerItem) error {
 	return errors.New("not implemented")
 }
 
-func (config *SqliteDatabaseDriver) GetRunnerUsers(runnerUser *RunnerFlagsItem) ([]*RunnerFlagsItem, error) {
+func (config *SqliteDatabaseDriver) GetRunnerUsers(runnerUser *RunnerItem) ([]*RunnerItem, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (config *SqliteDatabaseDriver) DeleteRunnerUser(params *RunnerFlagsItem) error {
+func (config *SqliteDatabaseDriver) DeleteRunnerUser(params *RunnerItem) error {
 	return errors.New("not implemented")
 }

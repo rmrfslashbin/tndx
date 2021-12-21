@@ -29,7 +29,7 @@ func RunRunnerList() error {
 		}).Fatal("error getting user")
 	}
 
-	res, err := svc.db.GetRunnerUsers(&database.RunnerFlagsItem{
+	res, err := svc.db.GetRunnerUsers(&database.RunnerItem{
 		RunnerName: flags.runner,
 		UserID:     flags.userid,
 	})

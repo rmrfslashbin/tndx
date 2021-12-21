@@ -1,18 +1,18 @@
 package database
 
 type DatabaseDriver interface {
+	DeleteRunnerUser(*RunnerItem) error
 	GetDriverName() string
-	GetFavoritesConfig(userID int64) (*TweetConfigQuery, error)
-	GetFollowersConfig(userID int64) (*CursoredTweetConfigQuery, error)
-	GetFriendsConfig(userID int64) (*CursoredTweetConfigQuery, error)
-	GetTimelineConfig(userID int64) (*TweetConfigQuery, error)
-	PutFavoritesConfig(query *TweetConfigQuery) error
-	PutFollowersConfig(query *CursoredTweetConfigQuery) error
-	PutFriendsConfig(query *CursoredTweetConfigQuery) error
-	PutTimelineConfig(query *TweetConfigQuery) error
-	PutRunnerFlags(params *RunnerFlagsItem) error
-	GetRunnerUsers(runnerUser *RunnerFlagsItem) ([]*RunnerFlagsItem, error)
-	DeleteRunnerUser(params *RunnerFlagsItem) error
+	GetFavoritesConfig(int64) (*TweetConfigQuery, error)
+	GetFollowersConfig(int64) (*CursoredTweetConfigQuery, error)
+	GetFriendsConfig(int64) (*CursoredTweetConfigQuery, error)
+	GetRunnerUsers(*RunnerItem) ([]*RunnerItem, error)
+	GetTimelineConfig(int64) (*TweetConfigQuery, error)
+	PutFavoritesConfig(*TweetConfigQuery) error
+	PutFollowersConfig(*CursoredTweetConfigQuery) error
+	PutFriendsConfig(*CursoredTweetConfigQuery) error
+	PutTimelineConfig(*TweetConfigQuery) error
+	PutRunnerFlags(*RunnerItem) error
 }
 
 type TweetConfigQuery struct {

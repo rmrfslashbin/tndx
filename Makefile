@@ -34,7 +34,7 @@ docker-build:
 	@docker build -t github.com/rmrfslashbin/$(PROJECT):latest .
 
 cfdeploy: lambda-build
-	aws --profile us-east-2 cloudformation package --template-file aws-cloudformation/stable.yaml --s3-bucket $(deploy_bucket) --output-template-file build/out.yaml
+	aws --profile us-east-2 cloudformation package --template-file aws-cloudformation/template.yaml --s3-bucket $(deploy_bucket) --output-template-file build/out.yaml
 	aws --profile us-east-2 cloudformation deploy --template-file build/out.yaml --stack-name $(stack_name) --capabilities CAPABILITY_NAMED_IAM
 
 lambda-build:

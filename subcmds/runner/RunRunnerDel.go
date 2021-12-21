@@ -27,7 +27,7 @@ func RunRunnerDel() error {
 		}).Fatal("error getting user")
 	}
 
-	if err := svc.db.DeleteRunnerUser(&database.RunnerFlagsItem{RunnerName: flags.runner, UserID: flags.userid}); err != nil {
+	if err := svc.db.DeleteRunnerUser(&database.RunnerItem{RunnerName: flags.runner, UserID: flags.userid}); err != nil {
 		log.WithFields(logrus.Fields{
 			"action": "RunRunnerDel::PutRunnerFlags",
 			"error":  err.Error(),

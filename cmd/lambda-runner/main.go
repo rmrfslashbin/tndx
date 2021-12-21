@@ -3,30 +3,30 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/rmrfslashbin/tndx/pkg/database"
 	"github.com/rmrfslashbin/tndx/pkg/queue"
+	"github.com/rmrfslashbin/tndx/pkg/ssmparams"
 	"github.com/sirupsen/logrus"
 )
 
 var (
-	log *logrus.Logger
-	db  *database.DDBDriver
+	aws_region string
+	log        *logrus.Logger
+	db         *database.DDBDriver
 )
 
 type Message struct {
 	RunnerName       string `json:"runner_name"`
-	Loglevel         string `json:"loglevel"`
 	Function         string `json:"function"`
-	DDBRegion        string `json:"ddb_region"`
-	DDBTable         string `json:"ddb_table"`
+	DDBParamsTable   string `json:"ddb_params_table"`
 	DDBRunnerTable   string `json:"ddb_runner_table"`
 	SQSRunnerURL     string `json:"sqs_runner_url"`
 	S3Bucket         string `json:"s3_bucket"`
-	S3Region         string `json:"s3_region"`
 	TwitterAPIKey    string `json:"twitter_api_key"`
 	TwitterAPISecret string `json:"twitter_api_secret"`
 }
@@ -35,6 +35,7 @@ func init() {
 	log = logrus.New()
 	log.SetLevel(logrus.InfoLevel)
 	log.SetFormatter(&logrus.JSONFormatter{})
+	aws_region = os.Getenv("AWS_REGION")
 }
 
 func main() {
@@ -51,16 +52,46 @@ func main() {
 }
 
 func handler(ctx context.Context, message Message) error {
-	outputs, err := getParams([]*string{
-		&message.DDBRegion,
-		&message.DDBRunnerTable,
-		&message.DDBTable,
-		&message.SQSRunnerURL,
-		&message.S3Bucket,
-		&message.S3Region,
-		&message.TwitterAPIKey,
-		&message.TwitterAPISecret,
+
+	if message.RunnerName == "" {
+		return errors.New("runner name is required")
+	}
+	if message.Function == "" {
+		return errors.New("function is required")
+	}
+	if message.DDBParamsTable == "" {
+		return errors.New("ddb params table is required")
+	}
+	if message.DDBRunnerTable == "" {
+		return errors.New("ddb runner table is required")
+	}
+	if message.SQSRunnerURL == "" {
+		return errors.New("sqs runner url is required")
+	}
+	if message.S3Bucket == "" {
+		return errors.New("s3 bucket is required")
+	}
+	if message.TwitterAPIKey == "" {
+		return errors.New("twitter api key is required")
+	}
+	if message.TwitterAPISecret == "" {
+		return errors.New("twitter api secret is required")
+	}
+
+	params := ssmparams.NewSSMParams(
+		ssmparams.SetRegion(aws_region),
+		ssmparams.SetLogger(log),
+	)
+
+	outputs, err := params.GetParams([]string{
+		message.DDBParamsTable,
+		message.DDBRunnerTable,
+		message.SQSRunnerURL,
+		message.S3Bucket,
+		message.TwitterAPIKey,
+		message.TwitterAPISecret,
 	})
+
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"action": "getParams",
@@ -69,18 +100,25 @@ func handler(ctx context.Context, message Message) error {
 		return err
 	}
 
+	if len(outputs.InvalidParameters) > 0 {
+		log.WithFields(logrus.Fields{
+			"invalid_parameters": outputs.InvalidParameters,
+		}).Error("invalid parameters")
+		return errors.New("invalid parameters")
+	}
+
 	db = database.NewDDB(
 		database.SetDDBLogger(log),
-		database.SetDDBTable(outputs[message.DDBRegion].(string)),
-		database.SetDDBRunnerTable(outputs[message.DDBRunnerTable].(string)),
+		database.SetDDBTable(outputs.Params[message.DDBParamsTable].(string)),
+		database.SetDDBRunnerTable(outputs.Params[message.DDBRunnerTable].(string)),
 	)
 
 	q := queue.NewSQS(
 		queue.SetLogger(log),
-		queue.SetSQSURL(outputs[message.SQSRunnerURL].(string)),
+		queue.SetSQSURL(outputs.Params[message.SQSRunnerURL].(string)),
 	)
 
-	users, err := db.GetRunnerUsers(&database.RunnerFlagsItem{RunnerName: message.RunnerName})
+	users, err := db.GetRunnerUsers(&database.RunnerItem{RunnerName: message.RunnerName})
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"action": "getRunnerUsers",
@@ -90,12 +128,12 @@ func handler(ctx context.Context, message Message) error {
 	}
 
 	bootstrap := &queue.Bootstrap{
-		S3_bucket:          outputs[message.S3Bucket].(string),
-		S3_region:          outputs[message.S3Region].(string),
-		DDB_table:          outputs[message.DDBTable].(string),
-		DDB_region:         outputs[message.DDBRegion].(string),
-		Twitter_api_key:    outputs[message.TwitterAPIKey].(string),
-		Twitter_api_secret: outputs[message.TwitterAPISecret].(string),
+		S3_bucket:          outputs.Params[message.S3Bucket].(string),
+		S3_region:          aws_region,
+		DDB_table:          outputs.Params[message.DDBParamsTable].(string),
+		DDB_region:         aws_region,
+		Twitter_api_key:    outputs.Params[message.TwitterAPIKey].(string),
+		Twitter_api_secret: outputs.Params[message.TwitterAPISecret].(string),
 		EntiryURL:          "void", // Not needed for this stage
 		UserID:             0,      // Not needed for this stage
 		TweetId:            "void", // Not needed for this stage
@@ -105,7 +143,7 @@ func handler(ctx context.Context, message Message) error {
 	case "favorites":
 		bootstrap.Function = "favorites"
 		for _, user := range users {
-			if Has(user.Flags, database.F_favorites) {
+			if dataabse.Has(user.Flags, database.F_favorites) {
 				bootstrap.UserID = user.UserID
 				if err := q.SendRunnerMessage(bootstrap); err != nil {
 					log.WithFields(logrus.Fields{
@@ -221,8 +259,3 @@ func getParams(paramNames []*string) (map[string]interface{}, error) {
 	return output, nil
 
 }
-
-func Set(b, flag database.Bits) database.Bits    { return b | flag }
-func Clear(b, flag database.Bits) database.Bits  { return b &^ flag }
-func Toggle(b, flag database.Bits) database.Bits { return b ^ flag }
-func Has(b, flag database.Bits) bool             { return b&flag != 0 }
