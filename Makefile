@@ -38,8 +38,8 @@ cfdeploy: lambda-build
 	aws --profile us-east-2 cloudformation deploy --template-file build/out.yaml --stack-name $(stack_name) --capabilities CAPABILITY_NAMED_IAM
 
 lambda-build:
-	GOOS=linux GOARCH=arm64 go build -o bin/lambda-sqs/bootstrap cmd/lambda-sqs/main.go
-	GOOS=linux GOARCH=arm64 go build -o bin/lambda-runner/bootstrap cmd/lambda-runner/main.go
+	GOOS=linux GOARCH=arm64 go build -o bin/tndx-processor/bootstrap cmd/tndx-processor/main.go
+	GOOS=linux GOARCH=arm64 go build -o bin/tndx-runner/bootstrap cmd/tndx-runner/main.go
 
 cfdescribe:
 	aws cloudformation describe-stack-events --stack-name $(stack_name)

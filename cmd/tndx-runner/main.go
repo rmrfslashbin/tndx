@@ -6,8 +6,6 @@ import (
 	"os"
 
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/rmrfslashbin/tndx/pkg/database"
 	"github.com/rmrfslashbin/tndx/pkg/queue"
 	"github.com/rmrfslashbin/tndx/pkg/ssmparams"
@@ -128,24 +126,25 @@ func handler(ctx context.Context, message Message) error {
 	}
 
 	bootstrap := &queue.Bootstrap{
-		S3_bucket:          outputs.Params[message.S3Bucket].(string),
-		S3_region:          aws_region,
-		DDB_table:          outputs.Params[message.DDBParamsTable].(string),
-		DDB_region:         aws_region,
-		Twitter_api_key:    outputs.Params[message.TwitterAPIKey].(string),
-		Twitter_api_secret: outputs.Params[message.TwitterAPISecret].(string),
-		EntiryURL:          "void", // Not needed for this stage
-		UserID:             0,      // Not needed for this stage
-		TweetId:            "void", // Not needed for this stage
+		S3Bucket:         outputs.Params[message.S3Bucket].(string),
+		DDBParamsTable:   outputs.Params[message.DDBParamsTable].(string),
+		DDBRunnerTable:   outputs.Params[message.DDBRunnerTable].(string),
+		TwitterAPIKey:    outputs.Params[message.TwitterAPIKey].(string),
+		TwitterAPISecret: outputs.Params[message.TwitterAPISecret].(string),
+		SQSRunnerURL:     outputs.Params[message.SQSRunnerURL].(string),
 	}
 
 	switch message.Function {
 	case "favorites":
 		bootstrap.Function = "favorites"
 		for _, user := range users {
-			if dataabse.Has(user.Flags, database.F_favorites) {
-				bootstrap.UserID = user.UserID
-				if err := q.SendRunnerMessage(bootstrap); err != nil {
+			if database.Has(user.Flags, database.F_favorites) {
+				if err := q.SendRunnerMessage(&queue.SendMessage{
+					Bootstrap: bootstrap,
+					Message: &queue.ProcessorMessage{
+						UserID: user.UserID,
+					},
+				}); err != nil {
 					log.WithFields(logrus.Fields{
 						"action": "sendRunnerMessage",
 						"error":  err.Error(),
@@ -161,9 +160,13 @@ func handler(ctx context.Context, message Message) error {
 	case "followers":
 		bootstrap.Function = "followers"
 		for _, user := range users {
-			if Has(user.Flags, database.F_followers) {
-				bootstrap.UserID = user.UserID
-				if err := q.SendRunnerMessage(bootstrap); err != nil {
+			if database.Has(user.Flags, database.F_followers) {
+				if err := q.SendRunnerMessage(&queue.SendMessage{
+					Bootstrap: bootstrap,
+					Message: &queue.ProcessorMessage{
+						UserID: user.UserID,
+					},
+				}); err != nil {
 					log.WithFields(logrus.Fields{
 						"action": "sendRunnerMessage",
 						"error":  err.Error(),
@@ -178,9 +181,13 @@ func handler(ctx context.Context, message Message) error {
 	case "friends":
 		bootstrap.Function = "friends"
 		for _, user := range users {
-			if Has(user.Flags, database.F_friends) {
-				bootstrap.UserID = user.UserID
-				if err := q.SendRunnerMessage(bootstrap); err != nil {
+			if database.Has(user.Flags, database.F_friends) {
+				if err := q.SendRunnerMessage(&queue.SendMessage{
+					Bootstrap: bootstrap,
+					Message: &queue.ProcessorMessage{
+						UserID: user.UserID,
+					},
+				}); err != nil {
 					log.WithFields(logrus.Fields{
 						"action": "sendRunnerMessage",
 						"error":  err.Error(),
@@ -195,9 +202,13 @@ func handler(ctx context.Context, message Message) error {
 	case "timeline":
 		bootstrap.Function = "timeline"
 		for _, user := range users {
-			if Has(user.Flags, database.F_timeline) {
-				bootstrap.UserID = user.UserID
-				if err := q.SendRunnerMessage(bootstrap); err != nil {
+			if database.Has(user.Flags, database.F_timeline) {
+				if err := q.SendRunnerMessage(&queue.SendMessage{
+					Bootstrap: bootstrap,
+					Message: &queue.ProcessorMessage{
+						UserID: user.UserID,
+					},
+				}); err != nil {
 					log.WithFields(logrus.Fields{
 						"action": "sendRunnerMessage",
 						"error":  err.Error(),
@@ -212,9 +223,13 @@ func handler(ctx context.Context, message Message) error {
 	case "user":
 		bootstrap.Function = "user"
 		for _, user := range users {
-			if Has(user.Flags, database.F_user) {
-				bootstrap.UserID = user.UserID
-				if err := q.SendRunnerMessage(bootstrap); err != nil {
+			if database.Has(user.Flags, database.F_user) {
+				if err := q.SendRunnerMessage(&queue.SendMessage{
+					Bootstrap: bootstrap,
+					Message: &queue.ProcessorMessage{
+						UserID: user.UserID,
+					},
+				}); err != nil {
 					log.WithFields(logrus.Fields{
 						"action": "sendRunnerMessage",
 						"error":  err.Error(),
@@ -234,28 +249,4 @@ func handler(ctx context.Context, message Message) error {
 	}
 
 	return nil
-}
-
-func getParams(paramNames []*string) (map[string]interface{}, error) {
-	s := ssm.New(session.Must(session.NewSession()))
-	// Create a SSM client with additional configuration
-	//svc := ssm.New(mySession, aws.NewConfig().WithRegion("us-west-2"))
-
-	ret, err := s.GetParameters(&ssm.GetParametersInput{
-		Names: paramNames,
-	})
-	if err != nil {
-		log.WithFields(logrus.Fields{
-			"action": "ssmparams::GetParameters",
-			"error":  err.Error(),
-		}).Error("error getting parameters.")
-		return nil, err
-	}
-	output := make(map[string]interface{})
-
-	for _, v := range ret.Parameters {
-		output[*v.Name] = *v.Value
-	}
-	return output, nil
-
 }

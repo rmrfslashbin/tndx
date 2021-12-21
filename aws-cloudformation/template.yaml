@@ -222,7 +222,7 @@ Resources:
     Properties:
       Description: Tndx Processor
       FunctionName: !Sub ${ParamAppName}-processor-${ParamEnvironment}
-      CodeUri: ../bin/lambda-sqs
+      CodeUri: ../bin/tndx-processor
       Handler: bootstrap
       Runtime: provided.al2
       Architectures: [arm64]
@@ -242,7 +242,7 @@ Resources:
     Properties:
       Description: Runner function
       FunctionName: !Sub ${ParamAppName}-runner-${ParamEnvironment}
-      CodeUri: ../bin/lambda-runner
+      CodeUri: ../bin/tndx-runner
       Handler: bootstrap
       Runtime: provided.al2
       Architectures: [arm64]

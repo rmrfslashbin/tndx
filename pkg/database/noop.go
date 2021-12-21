@@ -67,8 +67,8 @@ func (config *NoopDBDriver) PutRunnerFlags(params *RunnerItem) error {
 	return nil
 }
 
-func (config *NoopDBDriver) GetRunnerUsers(params *RunnerItem) error {
-	return nil
+func (config *NoopDBDriver) GetRunnerUsers(*RunnerItem) ([]*RunnerItem, error) {
+	return nil, nil
 }
 
 func (config *NoopDBDriver) DeleteRunnerUser(params *RunnerItem) error {

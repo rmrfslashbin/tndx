@@ -271,7 +271,6 @@ func setup(cmd *cobra.Command) {
 		svc.queue = queue.NewSQS(
 			queue.SetLogger(log),
 			queue.SetSQSURL(outputs.Parameters[sqsEntitiesURL].(string)),
-			queue.SetS3Bucket(outputs.Parameters[s3Bucket].(string)),
 		)
 	}
 

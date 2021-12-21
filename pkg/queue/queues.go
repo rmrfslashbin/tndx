@@ -1,36 +1,36 @@
 package queue
 
 import (
-	"strconv"
+	"context"
+	"encoding/json"
+	"os"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/rmrfslashbin/tndx/pkg/utils"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/sirupsen/logrus"
 )
 
-type SSMParams struct {
-	EntityQueue      string `json:"entity_queue"`
+type Bootstrap struct {
+	Function         string `json:"function"`
+	DDBParamsTable   string `json:"ddb_params_table"`
+	DDBRunnerTable   string `json:"ddb_runner_table"`
+	SQSRunnerURL     string `json:"sqs_runner_url"`
 	S3Bucket         string `json:"s3_bucket"`
-	S3Region         string `json:"s3_region"`
-	DDBTable         string `json:"ddb_table"`
-	DDBRegion        string `json:"ddb_region"`
 	TwitterAPIKey    string `json:"twitter_api_key"`
 	TwitterAPISecret string `json:"twitter_api_secret"`
 }
 
-type Bootstrap struct {
-	Function           string `json:"function"` // user, friends, followers, favorties, timeline, entities
-	UserID             int64  `json:"userid"`
-	S3_bucket          string `json:"s3_bucket"`
-	S3_region          string `json:"s3_region"`
-	DDB_table          string `json:"ddb_table"`
-	DDB_region         string `json:"ddb_region"`
-	Twitter_api_key    string `json:"twitter_api_key"`
-	Twitter_api_secret string `json:"twitter_api_secret"`
-	TweetId            string `json:"tweetid"`
-	EntiryURL          string `json:"entity_url"`
+type ProcessorMessage struct {
+	UserID    int64  `json:"user_id"`
+	TweetID   string `json:"tweet_id"`
+	EntityURL string `json:"entity_url"`
+}
+
+type SendMessage struct {
+	Bootstrap *Bootstrap        `json:"bootstrap"`
+	Message   *ProcessorMessage `json:"message"`
 }
 
 type Option func(config *Config)
@@ -38,28 +38,34 @@ type Option func(config *Config)
 // Configuration structure.
 type Config struct {
 	sqsQueueURL string
-	s3Bucket    string
+	region      string
 	log         *logrus.Logger
-	sqs         *sqs.SQS
+	sqs         *sqs.Client
 }
 
 func NewSQS(opts ...func(*Config)) *Config {
-	config := &Config{}
+	cfg := &Config{}
 
 	// apply the list of options to Config
 	for _, opt := range opts {
-		opt(config)
+		opt(cfg)
 	}
 
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
+	if cfg.region == "" {
+		cfg.region = os.Getenv("AWS_REGION")
+	}
 
-	// Create DynamoDB client
-	svc := sqs.New(sess)
-	config.sqs = svc
+	c, err := config.LoadDefaultConfig(context.TODO(), func(o *config.LoadOptions) error {
+		o.Region = cfg.region
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
+	svc := sqs.NewFromConfig(c)
+	cfg.sqs = svc
 
-	return config
+	return cfg
 }
 
 func SetSQSURL(sqsQueueURL string) Option {
@@ -68,9 +74,9 @@ func SetSQSURL(sqsQueueURL string) Option {
 	}
 }
 
-func SetS3Bucket(s3Bucket string) Option {
+func SetRegion(region string) Option {
 	return func(config *Config) {
-		config.s3Bucket = s3Bucket
+		config.region = region
 	}
 }
 
@@ -80,82 +86,28 @@ func SetLogger(log *logrus.Logger) Option {
 	}
 }
 
+func (config *Config) SendRunnerMessage(params *SendMessage) error {
+	body, err := json.Marshal(params.Message)
+	if err != nil {
+		return err
+	}
+	_, err = config.sqs.SendMessage(context.TODO(), &sqs.SendMessageInput{
+		QueueUrl: aws.String(config.sqsQueueURL),
+		MessageAttributes: map[string]types.MessageAttributeValue{
+			"function":           {DataType: aws.String("String"), StringValue: aws.String(params.Bootstrap.Function)},
+			"ddb_params_table":   {DataType: aws.String("String"), StringValue: aws.String(params.Bootstrap.DDBParamsTable)},
+			"ddb_runner_table":   {DataType: aws.String("String"), StringValue: aws.String(params.Bootstrap.DDBRunnerTable)},
+			"sqs_runner_url":     {DataType: aws.String("String"), StringValue: aws.String(params.Bootstrap.SQSRunnerURL)},
+			"s3_bucket":          {DataType: aws.String("String"), StringValue: aws.String(params.Bootstrap.S3Bucket)},
+			"twitter_api_key":    {DataType: aws.String("String"), StringValue: aws.String(params.Bootstrap.TwitterAPIKey)},
+			"twitter_api_secret": {DataType: aws.String("String"), StringValue: aws.String(params.Bootstrap.TwitterAPISecret)},
+		},
+		MessageBody: aws.String(string(body)),
+	})
+	return err
+}
+
 /*
-func (config *Config) SendEntityMessage(tweetId string, url string) error {
-	_, err := config.sqs.SendMessage(&sqs.SendMessageInput{
-		DelaySeconds: aws.Int64(10),
-		MessageAttributes: map[string]*sqs.MessageAttributeValue{
-			"tweetId": &sqs.MessageAttributeValue{
-				DataType:    aws.String("String"),
-				StringValue: aws.String(tweetId),
-			},
-			"url": &sqs.MessageAttributeValue{
-				DataType:    aws.String("String"),
-				StringValue: aws.String(url),
-			},
-			"bucket": &sqs.MessageAttributeValue{
-				DataType:    aws.String("String"),
-				StringValue: aws.String(config.s3Bucket),
-			},
-		},
-		MessageBody: aws.String("This is a test message."),
-		QueueUrl:    &config.sqsQueueURL,
-	})
-	return err
-}
-*/
-
-func (config *Config) SendRunnerMessage(Bootstrap *Bootstrap) error {
-	_, err := config.sqs.SendMessage(&sqs.SendMessageInput{
-		DelaySeconds: aws.Int64(10),
-		MessageAttributes: map[string]*sqs.MessageAttributeValue{
-			"function": &sqs.MessageAttributeValue{
-				DataType:    aws.String("String"),
-				StringValue: aws.String(Bootstrap.Function),
-			},
-			"userid": &sqs.MessageAttributeValue{
-				DataType:    aws.String("Number"),
-				StringValue: aws.String(strconv.FormatInt(Bootstrap.UserID, 10)),
-			},
-			"s3_bucket": &sqs.MessageAttributeValue{
-				DataType:    aws.String("String"),
-				StringValue: aws.String(Bootstrap.S3_bucket),
-			},
-			"s3_region": &sqs.MessageAttributeValue{
-				DataType:    aws.String("String"),
-				StringValue: aws.String(Bootstrap.S3_region),
-			},
-			"ddb_table": &sqs.MessageAttributeValue{
-				DataType:    aws.String("String"),
-				StringValue: aws.String(Bootstrap.DDB_table),
-			},
-			"ddb_region": &sqs.MessageAttributeValue{
-				DataType:    aws.String("String"),
-				StringValue: aws.String(Bootstrap.DDB_region),
-			},
-			"twitter_api_key": &sqs.MessageAttributeValue{
-				DataType:    aws.String("String"),
-				StringValue: aws.String(Bootstrap.Twitter_api_key),
-			},
-			"twitter_api_secret": &sqs.MessageAttributeValue{
-				DataType:    aws.String("String"),
-				StringValue: aws.String(Bootstrap.Twitter_api_secret),
-			},
-			"tweetid": &sqs.MessageAttributeValue{
-				DataType:    aws.String("String"),
-				StringValue: aws.String(Bootstrap.TweetId),
-			},
-			"entity_url": &sqs.MessageAttributeValue{
-				DataType:    aws.String("String"),
-				StringValue: aws.String(Bootstrap.EntiryURL),
-			},
-		},
-		MessageBody: aws.String("This is a test message."),
-		QueueUrl:    &config.sqsQueueURL,
-	})
-	return err
-}
-
 func (config *Config) ReceiveMessage() error {
 	result, err := config.sqs.ReceiveMessage(&sqs.ReceiveMessageInput{
 		AttributeNames: []*string{
@@ -182,3 +134,4 @@ func (config *Config) ReceiveMessage() error {
 	}
 	return nil
 }
+*/

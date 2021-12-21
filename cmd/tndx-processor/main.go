@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/rmrfslashbin/tndx/pkg/database"
 	"github.com/rmrfslashbin/tndx/pkg/queue"
 	"github.com/rmrfslashbin/tndx/pkg/service"
+	"github.com/rmrfslashbin/tndx/pkg/ssmparams"
 	"github.com/rmrfslashbin/tndx/pkg/storage"
 	"github.com/sirupsen/logrus"
 )
@@ -27,28 +29,19 @@ type services struct {
 	queue         *queue.Config
 }
 
-type RunnerFunction struct {
-	Function         *string `json:"function"`
-	DDBRegion        *string `json:"ddb_region"`
-	DDBTable         *string `json:"ddb_table"`
-	S3Bucket         *string `json:"s3_bucket"`
-	S3Region         *string `json:"s3_region"`
-	TwitterAPIKey    *string `json:"twitter_api_key"`
-	TwitterAPISecret *string `json:"twitter_api_secret"`
-	UserID           int64   `json:"userid"`
-	TweetId          *string `json:"tweetid"`
-	EntiryURL        *string `json:"entity_url"`
-}
-
 var (
-	log *logrus.Logger
-	svc services
+	aws_region string
+	log        *logrus.Logger
+	db         *database.DDBDriver
+	svc        *services
 )
 
 func init() {
 	log = logrus.New()
 	log.SetLevel(logrus.InfoLevel)
 	log.SetFormatter(&logrus.JSONFormatter{})
+	aws_region = os.Getenv("AWS_REGION")
+	svc = &services{}
 }
 
 func main() {
@@ -65,65 +58,103 @@ func main() {
 }
 
 func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
-
 	for _, message := range sqsEvent.Records {
-		userId, err := strconv.ParseInt(*message.MessageAttributes["userid"].StringValue, 10, 64)
-		if err != nil {
+		messageBody := &queue.ProcessorMessage{}
+		if err := json.Unmarshal([]byte(message.Body), messageBody); err != nil {
 			logrus.WithFields(logrus.Fields{
-				"action": "handler::ParseInt",
+				"action": "handler::Unmarshal",
 				"error":  err.Error(),
-			}).Error("error parsing userid")
+				"body":   message.Body,
+			}).Error("error unmarshalling message")
 			return err
 		}
 
-		runnerFunction := RunnerFunction{
-			Function:         message.MessageAttributes["function"].StringValue,
-			DDBRegion:        message.MessageAttributes["ddb_region"].StringValue,
-			DDBTable:         message.MessageAttributes["ddb_table"].StringValue,
-			S3Bucket:         message.MessageAttributes["s3_bucket"].StringValue,
-			S3Region:         message.MessageAttributes["s3_region"].StringValue,
-			TwitterAPIKey:    message.MessageAttributes["twitter_api_key"].StringValue,
-			TwitterAPISecret: message.MessageAttributes["twitter_api_secret"].StringValue,
-			TweetId:          message.MessageAttributes["tweetid"].StringValue,
-			EntiryURL:        message.MessageAttributes["entity_url"].StringValue,
-			UserID:           userId,
+		bootstrap := &queue.Bootstrap{
+			Function:         *message.MessageAttributes["function"].StringValue,
+			DDBParamsTable:   *message.MessageAttributes["ddb_params_table"].StringValue,
+			DDBRunnerTable:   *message.MessageAttributes["ddb_runner_table"].StringValue,
+			SQSRunnerURL:     *message.MessageAttributes["sqs_runner_url"].StringValue,
+			S3Bucket:         *message.MessageAttributes["s3_bucket"].StringValue,
+			TwitterAPIKey:    *message.MessageAttributes["twitter_api_key"].StringValue,
+			TwitterAPISecret: *message.MessageAttributes["twitter_api_secret"].StringValue,
 		}
 
-		svc.queue = queue.NewSQS(
-			queue.SetLogger(log),
-			queue.SetSQSURL("https://sqs.us-east-1.amazonaws.com/150319663043/tndx-runner"),
-			queue.SetS3Bucket(*runnerFunction.S3Bucket),
+		if bootstrap.Function == "" {
+			return errors.New("function is required")
+		}
+		if bootstrap.DDBParamsTable == "" {
+			return errors.New("ddb params table is required")
+		}
+		if bootstrap.DDBRunnerTable == "" {
+			return errors.New("ddb runner table is required")
+		}
+		if bootstrap.SQSRunnerURL == "" {
+			return errors.New("sqs runner url is required")
+		}
+		if bootstrap.S3Bucket == "" {
+			return errors.New("s3 bucket is required")
+		}
+		if bootstrap.TwitterAPIKey == "" {
+			return errors.New("twitter api key is required")
+		}
+		if bootstrap.TwitterAPISecret == "" {
+			return errors.New("twitter api secret is required")
+		}
+
+		params := ssmparams.NewSSMParams(
+			ssmparams.SetRegion(aws_region),
+			ssmparams.SetLogger(log),
 		)
+
+		outputs, err := params.GetParams([]string{
+			bootstrap.DDBParamsTable,
+			bootstrap.DDBRunnerTable,
+			bootstrap.SQSRunnerURL,
+			bootstrap.S3Bucket,
+			bootstrap.TwitterAPIKey,
+			bootstrap.TwitterAPISecret,
+		})
+
+		if err != nil {
+			log.WithFields(logrus.Fields{
+				"action": "getParams",
+				"error":  err.Error(),
+			}).Error("error getting parameters.")
+			return err
+		}
+
+		if len(outputs.InvalidParameters) > 0 {
+			log.WithFields(logrus.Fields{
+				"invalid_parameters": outputs.InvalidParameters,
+			}).Error("invalid parameters")
+			return errors.New("invalid parameters")
+		}
 
 		svc.db = database.NewDDB(
 			database.SetDDBLogger(log),
-			database.SetDDBTable(*runnerFunction.DDBTable),
-			database.SetDDBRegion(*runnerFunction.DDBRegion),
+			database.SetDDBTable(outputs.Params[bootstrap.DDBParamsTable].(string)),
+			database.SetDDBRunnerTable(outputs.Params[bootstrap.DDBRunnerTable].(string)),
+		)
+
+		svc.queue = queue.NewSQS(
+			queue.SetLogger(log),
+			queue.SetSQSURL(outputs.Params[bootstrap.SQSRunnerURL].(string)),
 		)
 
 		svc.storage = storage.NewS3Storage(
-			storage.SetS3Bucket(*runnerFunction.S3Bucket),
-			storage.SetS3Region(*runnerFunction.S3Region),
+			storage.SetS3Bucket(outputs.Params[bootstrap.S3Bucket].(string)),
+			storage.SetS3Region(aws_region),
 		)
 
 		svc.twitterClient = service.New(
-			service.SetConsumerKey(*runnerFunction.TwitterAPIKey),
-			service.SetConsumerSecret(*runnerFunction.TwitterAPISecret),
+			service.SetConsumerKey(outputs.Params[bootstrap.TwitterAPIKey].(string)),
+			service.SetConsumerSecret(outputs.Params[bootstrap.TwitterAPISecret].(string)),
 			service.SetLogger(log),
 		)
 
-		bootstrap := &queue.Bootstrap{
-			S3_bucket:          *runnerFunction.S3Bucket,
-			S3_region:          *runnerFunction.S3Region,
-			DDB_table:          *runnerFunction.DDBTable,
-			DDB_region:         *runnerFunction.DDBRegion,
-			Twitter_api_key:    *runnerFunction.TwitterAPIKey,
-			Twitter_api_secret: *runnerFunction.TwitterAPISecret,
-		}
-
-		switch *runnerFunction.Function {
+		switch bootstrap.Function {
 		case "entities":
-			if err := entities(runnerFunction.TweetId, runnerFunction.EntiryURL); err != nil {
+			if err := entities(&messageBody.TweetID, &messageBody.EntityURL); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"function": "entities",
 					"error":    err,
@@ -132,7 +163,7 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 			}
 
 		case "favorites":
-			if err := favorites(runnerFunction.UserID, bootstrap); err != nil {
+			if err := favorites(messageBody.UserID, bootstrap); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"function": "favorites",
 					"error":    err,
@@ -141,7 +172,7 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 			}
 
 		case "followers":
-			if err := followers(runnerFunction.UserID); err != nil {
+			if err := followers(messageBody.UserID); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"function": "followers",
 					"error":    err,
@@ -150,7 +181,7 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 			}
 
 		case "friends":
-			if err := friends(runnerFunction.UserID); err != nil {
+			if err := friends(messageBody.UserID); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"function": "friends",
 					"error":    err,
@@ -159,7 +190,7 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 			}
 
 		case "timeline":
-			if err := timeline(runnerFunction.UserID, bootstrap); err != nil {
+			if err := timeline(messageBody.UserID, bootstrap); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"function": "timeline",
 					"error":    err,
@@ -168,7 +199,7 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 			}
 
 		case "user":
-			if err := user(runnerFunction.UserID); err != nil {
+			if err := user(messageBody.UserID); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"function": "user",
 					"error":    err,
@@ -178,7 +209,7 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 
 		default:
 			logrus.WithFields(logrus.Fields{
-				"function": *runnerFunction.Function,
+				"function": bootstrap.Function,
 			}).Error("invalid function; should be one of user, friend, followers, favorites, timeline, entities")
 			return errors.New("invalid function; should be one of user, friend, followers, favorites, timeline, entities")
 		}
@@ -268,10 +299,13 @@ func favorites(userid int64, bootstrap *queue.Bootstrap) error {
 			}
 			if url != "" {
 				bootstrap.Function = "entities"
-				bootstrap.TweetId = tweets[t].IDStr
-				bootstrap.EntiryURL = url
-
-				if err := svc.queue.SendRunnerMessage(bootstrap); err != nil {
+				if err := svc.queue.SendRunnerMessage(&queue.SendMessage{
+					Bootstrap: bootstrap,
+					Message: &queue.ProcessorMessage{
+						TweetID:   tweets[t].IDStr,
+						EntityURL: url,
+					},
+				}); err != nil {
 					logrus.WithFields(logrus.Fields{
 						"action":  "favorites::queue::SendRunnerMessage",
 						"error":   err.Error(),
@@ -534,10 +568,13 @@ func timeline(userid int64, bootstrap *queue.Bootstrap) error {
 			}
 			if url != "" {
 				bootstrap.Function = "entities"
-				bootstrap.TweetId = tweets[t].IDStr
-				bootstrap.EntiryURL = url
-
-				if err := svc.queue.SendRunnerMessage(bootstrap); err != nil {
+				if err := svc.queue.SendRunnerMessage(&queue.SendMessage{
+					Bootstrap: bootstrap,
+					Message: &queue.ProcessorMessage{
+						TweetID:   tweets[t].IDStr,
+						EntityURL: url,
+					},
+				}); err != nil {
 					logrus.WithFields(logrus.Fields{
 						"action":  "timeline::queue::SendMessage",
 						"error":   err.Error(),
