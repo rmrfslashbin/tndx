@@ -30,6 +30,16 @@ Parameters:
       - prod
     Description: Environment for deployment.
 
+  ParamGlueDatabaseName:
+    Type: String
+    Default: tndx_us_east_2
+    Description: Glue database name.
+
+  ParamGlueTableNameTndxTimelines:
+    Type: String
+    Default: timelines
+    Description: Glue table name for tndx timelines.
+
   ParamRegion:
     Type: String
     Default: us-east-2
@@ -107,6 +117,61 @@ Resources:
         - Key: "Application"
           Value: { Ref: ParamAppName }
 
+  DeliveryStreamTimelines:
+    Type: AWS::KinesisFirehose::DeliveryStream
+    Properties:
+      DeliveryStreamType: DirectPut
+      ExtendedS3DestinationConfiguration:
+        RoleARN: !GetAtt RoleDelivery.Arn
+        BucketARN: !Join
+          - ""
+          - - "arn:aws:s3:::"
+            - !Ref S3Bucket
+        Prefix: "processed/timelines/user_id=!{partitionKeyFromQuery:user_id}/screen_name=!{partitionKeyFromQuery:screen_name}/"
+        ErrorOutputPrefix: "errors/"
+        BufferingHints:
+          SizeInMBs: 128
+          IntervalInSeconds: 300
+        CompressionFormat: UNCOMPRESSED
+        EncryptionConfiguration:
+          NoEncryptionConfig: NoEncryption
+        CloudWatchLoggingOptions:
+          Enabled: true
+          LogGroupName: !Join
+            - ""
+            - - "KDF-"
+              - !Ref GlueTableTndxTimelines
+          LogStreamName: S3Delivery
+        S3BackupMode: Disabled
+        DynamicPartitioningConfiguration:
+          Enabled: true
+          RetryOptions:
+            DurationInSeconds: 300
+        ProcessingConfiguration:
+          Enabled: true
+          Processors:
+            - Type: MetadataExtraction
+              Parameters:
+                - ParameterName: MetadataExtractionQuery
+                  ParameterValue: "{user_id : (.user.id) | screen_name : (.user.screen_name}"
+                - ParameterName: JsonParsingEngine
+                  ParameterValue: JQ-1.6
+        DataFormatConversionConfiguration:
+          SchemaConfiguration:
+            CatalogId: !Ref AWS::AccountId
+            RoleARN: !GetAtt RoleDelivery.Arn
+            DatabaseName: !Ref GlueDatabaseTndx
+            TableName: !Ref GlueTableTndxTimelines
+            Region: !Ref AWS::Region
+            VersionId: LATEST
+          InputFormatConfiguration:
+            Deserializer:
+              OpenXJsonSerDe: {}
+          OutputFormatConfiguration:
+            Serializer:
+              ParquetSerDe: {}
+          Enabled: True
+
   EventTndxRunnerFavorites:
     Type: AWS::Events::Rule
     Properties:
@@ -176,7 +241,7 @@ Resources:
   EventTndxRunnerTimeline:
     Type: AWS::Events::Rule
     Properties:
-      Description: Run a tndx runner for timeline
+      Description: Run a tndx runner for timelines
       ScheduleExpression: "rate(5 minutes)"
       State: DISABLED
       Targets:
@@ -250,6 +315,119 @@ Resources:
       Tags:
         Environment: { Ref: ParamEnvironment }
         Application: { Ref: ParamAppName }
+
+  GlueDatabaseTndx:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: !Ref ParamGlueDatabaseName
+        Description: tndx database
+
+  GlueTableTndxTimelines:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref GlueDatabaseTndx
+      TableInput:
+        Description: tndx timelines table
+        Name: !Ref ParamGlueTableNameTndxTimelines
+        StorageDescriptor:
+          Columns:
+            - Name: coordinates
+              Type: struct<coordinates:array<double>,type:string>
+            - Name: created_at
+              Type: string
+            - Name: current_user_retweet
+              Type: string
+            - Name: entities
+              Type: struct<hashtags:array<struct<indices:array<int>,text:string>>,media:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string,id:bigint,id_str:string,media_url:string,media_url_https:string,source_status_id:bigint,source_status_id_str:string,type:string,sizes:struct<thumb:struct<w:int,h:int,resize:string>,large:struct<w:int,h:int,resize:string>,medium:struct<w:int,h:int,resize:string>,small:struct<w:int,h:int,resize:string>>,video_info:struct<aspect_ratio:array<int>,duration_millis:int,variants:string>>>,urls:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string>>,user_mentions:array<struct<indices:array<int>,id:bigint,id_str:string,name:string,screen_name:string>>>
+            - Name: favorite_count
+              Type: int
+            - Name: favorited
+              Type: boolean
+            - Name: filter_level
+              Type: string
+            - Name: id
+              Type: bigint
+            - Name: id_str
+              Type: string
+            - Name: in_reply_to_screen_name
+              Type: string
+            - Name: in_reply_to_status_id
+              Type: bigint
+            - Name: in_reply_to_status_id_str
+              Type: string
+            - Name: in_reply_to_user_id
+              Type: bigint
+            - Name: in_reply_to_user_id_str
+              Type: string
+            - Name: lang
+              Type: string
+            - Name: possibly_sensitive
+              Type: boolean
+            - Name: quote_count
+              Type: bigint
+            - Name: reply_count
+              Type: int
+            - Name: retweet_count
+              Type: int
+            - Name: retweeted
+              Type: boolean
+            - Name: retweeted_status
+              Type: struct<coordinates:string,created_at:string,current_user_retweet:string,entities:struct<hashtags:array<struct<indices:array<int>,text:string>>,media:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string,id:bigint,id_str:string,media_url:string,media_url_https:string,source_status_id:bigint,source_status_id_str:string,type:string,sizes:struct<thumb:struct<w:int,h:int,resize:string>,large:struct<w:int,h:int,resize:string>,medium:struct<w:int,h:int,resize:string>,small:struct<w:int,h:int,resize:string>>,video_info:struct<aspect_ratio:array<int>,duration_millis:int,variants:string>>>,urls:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string>>,user_mentions:array<struct<indices:array<int>,id:bigint,id_str:string,name:string,screen_name:string>>>,favorite_count:int,favorited:boolean,filter_level:string,id:bigint,id_str:string,in_reply_to_screen_name:string,in_reply_to_status_id:bigint,in_reply_to_status_id_str:string,in_reply_to_user_id:bigint,in_reply_to_user_id_str:string,lang:string,possibly_sensitive:boolean,quote_count:int,reply_count:int,retweet_count:int,retweeted:boolean,retweeted_status:string,source:string,scopes:string,text:string,full_text:string,display_text_range:array<int>,place:struct<attributes:string,bounding_box:struct<coordinates:array<array<array<double>>>,type:string>,country:string,country_code:string,full_name:string,geometry:string,id:string,name:string,place_type:string,polylines:string,url:string>,truncated:boolean,user:struct<contributors_enabled:boolean,created_at:string,default_profile:boolean,default_profile_image:boolean,description:string,email:string,entities:struct<url:struct<hashtags:string,media:string,urls:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string>>,user_mentions:string>,description:struct<hashtags:string,media:string,urls:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string>>,user_mentions:string>>,favourites_count:int,follow_request_sent:boolean,followers_count:int,friends_count:int,geo_enabled:boolean,id:bigint,id_str:string,is_translator:boolean,lang:string,listed_count:int,location:string,name:string,notifications:boolean,profile_background_color:string,profile_background_image_url:string,profile_background_image_url_https:string,profile_background_tile:boolean,profile_banner_url:string,profile_image_url:string,profile_image_url_https:string,profile_link_color:string,profile_sidebar_border_color:string,profile_sidebar_fill_color:string,profile_text_color:string,profile_use_background_image:boolean,protected:boolean,screen_name:string,show_all_inline_media:boolean,status:string,statuses_count:int,time_zone:string,url:string,utc_offset:int,verified:boolean,withheld_in_countries:array<string>,withheld_scope:string>,withheld_copyright:boolean,withheld_in_countries:string,withheld_scope:string,extended_entities:struct<media:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string,id:bigint,id_str:string,media_url:string,media_url_https:string,source_status_id:bigint,source_status_id_str:string,type:string,sizes:struct<thumb:struct<w:int,h:int,resize:string>,large:struct<w:int,h:int,resize:string>,medium:struct<w:int,h:int,resize:string>,small:struct<w:int,h:int,resize:string>>,video_info:struct<aspect_ratio:array<int>,duration_millis:int,variants:array<struct<content_type:string,bitrate:int,url:string>>>>>>,extended_tweet:string,quoted_status_id:bigint,quoted_status_id_str:string,quoted_status:struct<coordinates:string,created_at:string,current_user_retweet:string,entities:struct<hashtags:array<struct<indices:array<int>,text:string>>,media:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string,id:bigint,id_str:string,media_url:string,media_url_https:string,source_status_id:bigint,source_status_id_str:string,type:string,sizes:struct<thumb:struct<w:int,h:int,resize:string>,large:struct<w:int,h:int,resize:string>,medium:struct<w:int,h:int,resize:string>,small:struct<w:int,h:int,resize:string>>,video_info:struct<aspect_ratio:array<int>,duration_millis:int,variants:string>>>,urls:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string>>,user_mentions:array<struct<indices:array<int>,id:bigint,id_str:string,name:string,screen_name:string>>>,favorite_count:int,favorited:boolean,filter_level:string,id:bigint,id_str:string,in_reply_to_screen_name:string,in_reply_to_status_id:bigint,in_reply_to_status_id_str:string,in_reply_to_user_id:bigint,in_reply_to_user_id_str:string,lang:string,possibly_sensitive:boolean,quote_count:int,reply_count:int,retweet_count:int,retweeted:boolean,retweeted_status:string,source:string,scopes:string,text:string,full_text:string,display_text_range:array<int>,place:struct<attributes:string,bounding_box:struct<coordinates:array<array<array<double>>>,type:string>,country:string,country_code:string,full_name:string,geometry:string,id:string,name:string,place_type:string,polylines:string,url:string>,truncated:boolean,user:struct<contributors_enabled:boolean,created_at:string,default_profile:boolean,default_profile_image:boolean,description:string,email:string,entities:struct<url:struct<hashtags:string,media:string,urls:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string>>,user_mentions:string>,description:struct<hashtags:string,media:string,urls:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string>>,user_mentions:string>>,favourites_count:int,follow_request_sent:boolean,followers_count:int,friends_count:int,geo_enabled:boolean,id:bigint,id_str:string,is_translator:boolean,lang:string,listed_count:int,location:string,name:string,notifications:boolean,profile_background_color:string,profile_background_image_url:string,profile_background_image_url_https:string,profile_background_tile:boolean,profile_banner_url:string,profile_image_url:string,profile_image_url_https:string,profile_link_color:string,profile_sidebar_border_color:string,profile_sidebar_fill_color:string,profile_text_color:string,profile_use_background_image:boolean,protected:boolean,screen_name:string,show_all_inline_media:boolean,status:string,statuses_count:int,time_zone:string,url:string,utc_offset:int,verified:boolean,withheld_in_countries:array<string>,withheld_scope:string>,withheld_copyright:boolean,withheld_in_countries:string,withheld_scope:string,extended_entities:struct<media:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string,id:bigint,id_str:string,media_url:string,media_url_https:string,source_status_id:bigint,source_status_id_str:string,type:string,sizes:struct<thumb:struct<w:int,h:int,resize:string>,large:struct<w:int,h:int,resize:string>,medium:struct<w:int,h:int,resize:string>,small:struct<w:int,h:int,resize:string>>,video_info:struct<aspect_ratio:array<int>,duration_millis:int,variants:array<struct<content_type:string,bitrate:int,url:string>>>>>>,extended_tweet:string,quoted_status_id:bigint,quoted_status_id_str:string,quoted_status:string>>
+            - Name: source
+              Type: string
+            - Name: scopes
+              Type: string
+            - Name: text
+              Type: string
+            - Name: full_text
+              Type: string
+            - Name: display_text_range
+              Type: array<int>
+            - Name: place
+              Type: struct<attributes:string,bounding_box:struct<coordinates:array<array<array<double>>>,type:string>,country:string,country_code:string,full_name:string,geometry:string,id:string,name:string,place_type:string,polylines:string,url:string>
+            - Name: truncated
+              Type: boolean
+            - Name: user
+              Type: struct<contributors_enabled:boolean,created_at:string,default_profile:boolean,default_profile_image:boolean,description:string,email:string,entities:struct<url:struct<hashtags:string,media:string,urls:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string>>,user_mentions:string>,description:struct<hashtags:string,media:string,urls:array<string>,user_mentions:string>>,favourites_count:int,follow_request_sent:boolean,followers_count:int,friends_count:int,geo_enabled:boolean,id:bigint,id_str:string,is_translator:boolean,lang:string,listed_count:int,location:string,name:string,notifications:boolean,profile_background_color:string,profile_background_image_url:string,profile_background_image_url_https:string,profile_background_tile:boolean,profile_banner_url:string,profile_image_url:string,profile_image_url_https:string,profile_link_color:string,profile_sidebar_border_color:string,profile_sidebar_fill_color:string,profile_text_color:string,profile_use_background_image:boolean,protected:boolean,screen_name:string,show_all_inline_media:boolean,status:string,statuses_count:int,time_zone:string,url:string,utc_offset:int,verified:boolean,withheld_in_countries:array<string>,withheld_scope:string>
+            - Name: withheld_copyright
+              Type: boolean
+            - Name: withheld_in_countries
+              Type: string
+            - Name: withheld_scope
+              Type: string
+            - Name: extended_entities
+              Type: struct<media:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string,id:bigint,id_str:string,media_url:string,media_url_https:string,source_status_id:bigint,source_status_id_str:string,type:string,sizes:struct<thumb:struct<w:int,h:int,resize:string>,large:struct<w:int,h:int,resize:string>,medium:struct<w:int,h:int,resize:string>,small:struct<w:int,h:int,resize:string>>,video_info:struct<aspect_ratio:array<int>,duration_millis:int,variants:array<struct<content_type:string,bitrate:int,url:string>>>>>>
+            - Name: extended_tweet
+              Type: string
+            - Name: quoted_status_id
+              Type: bigint
+            - Name: quoted_status_id_str
+              Type: string
+            - Name: quoted_status
+              Type: struct<coordinates:string,created_at:string,current_user_retweet:string,entities:struct<hashtags:array<struct<indices:array<int>,text:string>>,media:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string,id:bigint,id_str:string,media_url:string,media_url_https:string,source_status_id:bigint,source_status_id_str:string,type:string,sizes:struct<thumb:struct<w:int,h:int,resize:string>,large:struct<w:int,h:int,resize:string>,medium:struct<w:int,h:int,resize:string>,small:struct<w:int,h:int,resize:string>>,video_info:struct<aspect_ratio:array<int>,duration_millis:int,variants:string>>>,urls:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string>>,user_mentions:array<struct<indices:array<int>,id:bigint,id_str:string,name:string,screen_name:string>>>,favorite_count:int,favorited:boolean,filter_level:string,id:bigint,id_str:string,in_reply_to_screen_name:string,in_reply_to_status_id:bigint,in_reply_to_status_id_str:string,in_reply_to_user_id:bigint,in_reply_to_user_id_str:string,lang:string,possibly_sensitive:boolean,quote_count:int,reply_count:int,retweet_count:int,retweeted:boolean,retweeted_status:string,source:string,scopes:string,text:string,full_text:string,display_text_range:array<int>,place:struct<attributes:string,bounding_box:struct<coordinates:array<array<array<double>>>,type:string>,country:string,country_code:string,full_name:string,geometry:string,id:string,name:string,place_type:string,polylines:string,url:string>,truncated:boolean,user:struct<contributors_enabled:boolean,created_at:string,default_profile:boolean,default_profile_image:boolean,description:string,email:string,entities:struct<url:struct<hashtags:string,media:string,urls:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string>>,user_mentions:string>,description:struct<hashtags:string,media:string,urls:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string>>,user_mentions:string>>,favourites_count:int,follow_request_sent:boolean,followers_count:int,friends_count:int,geo_enabled:boolean,id:bigint,id_str:string,is_translator:boolean,lang:string,listed_count:int,location:string,name:string,notifications:boolean,profile_background_color:string,profile_background_image_url:string,profile_background_image_url_https:string,profile_background_tile:boolean,profile_banner_url:string,profile_image_url:string,profile_image_url_https:string,profile_link_color:string,profile_sidebar_border_color:string,profile_sidebar_fill_color:string,profile_text_color:string,profile_use_background_image:boolean,protected:boolean,screen_name:string,show_all_inline_media:boolean,status:string,statuses_count:int,time_zone:string,url:string,utc_offset:int,verified:boolean,withheld_in_countries:array<string>,withheld_scope:string>,withheld_copyright:boolean,withheld_in_countries:string,withheld_scope:string,extended_entities:struct<media:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string,id:bigint,id_str:string,media_url:string,media_url_https:string,source_status_id:bigint,source_status_id_str:string,type:string,sizes:struct<thumb:struct<w:int,h:int,resize:string>,large:struct<w:int,h:int,resize:string>,medium:struct<w:int,h:int,resize:string>,small:struct<w:int,h:int,resize:string>>,video_info:struct<aspect_ratio:array<int>,duration_millis:int,variants:array<struct<content_type:string,bitrate:int,url:string>>>>>>,extended_tweet:string,quoted_status_id:bigint,quoted_status_id_str:string,quoted_status:string>
+          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+          Location: !Sub
+            - arn:aws:s3:::${Bucket}/processed/timelines/
+            - { Bucket: !Ref S3BucketName }
+          Compressed: false
+          NumberOfBuckets: -1
+          SerdeInfo:
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+            Parameters:
+              serialization.format: "1"
+          BucketColumns: []
+          SortColumns: []
+          StoredAsSubDirectories: false
+        PartitionKeys:
+          - Name: user_id
+            Type: bigint
+          - Name: screen_name
+            Type: string
+        TableType: EXTERNAL_TABLE
 
   ParameterDDBParams:
     Type: AWS::SSM::Parameter
@@ -439,6 +617,60 @@ Resources:
             Action:
               - "ssm:GetParameter*"
             Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tndx*"
+
+  RoleDelivery:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: ""
+            Effect: Allow
+            Principal:
+              Service: firehose.amazonaws.com
+            Action: "sts:AssumeRole"
+            Condition:
+              StringEquals:
+                "sts:ExternalId": !Ref "AWS::AccountId"
+      Path: "/"
+      Policies:
+        - PolicyName: firehose_delivery_tndx_policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:AbortMultipartUpload"
+                  - "s3:GetBucketLocation"
+                  - "s3:GetObject"
+                  - "s3:ListBucket"
+                  - "s3:ListBucketMultipartUploads"
+                  - "s3:PutObject"
+                Resource:
+                  - !Join
+                    - ""
+                    - - "arn:aws:s3:::"
+                      - !Ref S3Bucket
+                  - !Join
+                    - ""
+                    - - "arn:aws:s3:::"
+                      - !Ref S3Bucket
+                      - "/*"
+              - Effect: Allow
+                Action: "glue:GetTableVersions"
+                Resource: "*"
+              - Effect: Allow
+                Action: "logs:PutLogEvents"
+                Resource:
+                  - !Join
+                    - ""
+                    - - "arn:aws:logs:"
+                      - !Ref "AWS::Region"
+                      - ":"
+                      - !Ref "AWS::AccountId"
+                      - "log-group:/aws/kinesisfirehose/KDF-"
+                      - !Ref GlueTableTndxTimelines
+                      - ":log-stream:*"
 
   RoleLambdaExecution:
     Type: AWS::IAM::Role

@@ -43,3 +43,7 @@ lambda-build:
 
 cfdescribe:
 	aws cloudformation describe-stack-events --stack-name $(stack_name)
+
+cfdeploy-glue:
+	aws --profile us-east-2 cloudformation package --template-file aws-cloudformation/glue.yaml --s3-bucket $(deploy_bucket) --output-template-file build/glue.yaml
+	aws --profile us-east-2 cloudformation deploy --template-file build/glue.yaml --stack-name glue-test --capabilities CAPABILITY_NAMED_IAM

@@ -9,6 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.11.0
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.4.4
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.10.0
+	github.com/aws/aws-sdk-go-v2/service/firehose v1.10.2
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.13.1
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.17.1
 	github.com/davecgh/go-spew v1.1.1
