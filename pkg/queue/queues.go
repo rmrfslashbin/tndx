@@ -91,7 +91,7 @@ func (config *Config) SendRunnerMessage(params *SendMessage) error {
 	if err != nil {
 		return err
 	}
-	_, err = config.sqs.SendMessage(context.TODO(), &sqs.SendMessageInput{
+	message := &sqs.SendMessageInput{
 		QueueUrl: aws.String(config.sqsQueueURL),
 		MessageAttributes: map[string]types.MessageAttributeValue{
 			"function":           {DataType: aws.String("String"), StringValue: aws.String(params.Bootstrap.Function)},
@@ -103,35 +103,12 @@ func (config *Config) SendRunnerMessage(params *SendMessage) error {
 			"twitter_api_secret": {DataType: aws.String("String"), StringValue: aws.String(params.Bootstrap.TwitterAPISecret)},
 		},
 		MessageBody: aws.String(string(body)),
-	})
+	}
+	/*
+		config.log.WithFields(logrus.Fields{
+			"message": message,
+		}).Info("Sending message to SQS")
+	*/
+	_, err = config.sqs.SendMessage(context.TODO(), message)
 	return err
 }
-
-/*
-func (config *Config) ReceiveMessage() error {
-	result, err := config.sqs.ReceiveMessage(&sqs.ReceiveMessageInput{
-		AttributeNames: []*string{
-			aws.String(sqs.MessageSystemAttributeNameSentTimestamp),
-		},
-		MessageAttributeNames: []*string{
-			aws.String(sqs.QueueAttributeNameAll),
-		},
-		QueueUrl:            &config.sqsQueueURL,
-		MaxNumberOfMessages: aws.Int64(1),
-		VisibilityTimeout:   aws.Int64(30),
-	})
-	if err != nil {
-		config.log.Error(err)
-		return err
-	}
-	for _, message := range result.Messages {
-		userid := (message.MessageAttributes["tweetId"].StringValue)
-		url := message.MessageAttributes["url"].StringValue
-		if err := utils.SaveEntities(userid, url); err != nil {
-			config.log.Error(err)
-			return err
-		}
-	}
-	return nil
-}
-*/

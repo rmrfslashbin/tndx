@@ -71,14 +71,14 @@ Resources:
       TableName: !Ref ParamDDBParamTable
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
-        - AttributeName: userid
+        - AttributeName: UserID
           AttributeType: N
-        - AttributeName: domain
+        - AttributeName: Domain
           AttributeType: S
       KeySchema:
-        - AttributeName: userid
+        - AttributeName: UserID
           KeyType: HASH
-        - AttributeName: domain
+        - AttributeName: Domain
           KeyType: RANGE
       Tags:
         - Key: "Environment"
@@ -121,8 +121,8 @@ Resources:
               "runner_name": "tndx-rmrfslashbin-01",
               "function": "favorites",
               "region": "${ParamRegion}",
-              "ddb_params_table": "${DDBParametersTable}",
-              "ddb_runner_table": "${DDBRunnerTable}",
+              "ddb_params_table": "${ParameterDDBParams}",
+              "ddb_runner_table": "${ParameterDDBRunner}",
               "sqs_runner_url": "${ParameterSQSRunner}",
               "s3_bucket": "${ParameterS3Bucket}",
               "twitter_api_key": "${ParameterTwitterAPIKey}",
@@ -143,8 +143,8 @@ Resources:
               "runner_name": "tndx-rmrfslashbin-01",
               "function": "followers",
               "region": "${ParamRegion}",
-              "ddb_params_table": "${DDBParametersTable}",
-              "ddb_runner_table": "${DDBRunnerTable}",
+              "ddb_params_table": "${ParameterDDBParams}",
+              "ddb_runner_table": "${ParameterDDBRunner}",
               "sqs_runner_url": "${ParameterSQSRunner}",
               "s3_bucket": "${ParameterS3Bucket}",
               "twitter_api_key": "${ParameterTwitterAPIKey}",
@@ -165,8 +165,8 @@ Resources:
               "runner_name": "tndx-rmrfslashbin-01",
               "function": "friends",
               "region": "${ParamRegion}",
-              "ddb_params_table": "${DDBParametersTable}",
-              "ddb_runner_table": "${DDBRunnerTable}",
+              "ddb_params_table": "${ParameterDDBParams}",
+              "ddb_runner_table": "${ParameterDDBRunner}",
               "sqs_runner_url": "${ParameterSQSRunner}",
               "s3_bucket": "${ParameterS3Bucket}",
               "twitter_api_key": "${ParameterTwitterAPIKey}",
@@ -187,8 +187,8 @@ Resources:
               "runner_name": "tndx-rmrfslashbin-01",
               "function": "timeline",
               "region": "${ParamRegion}",
-              "ddb_params_table": "${DDBParametersTable}",
-              "ddb_runner_table": "${DDBRunnerTable}",
+              "ddb_params_table": "${ParameterDDBParams}",
+              "ddb_runner_table": "${ParameterDDBRunner}",
               "sqs_runner_url": "${ParameterSQSRunner}",
               "s3_bucket": "${ParameterS3Bucket}",
               "twitter_api_key": "${ParameterTwitterAPIKey}",
@@ -209,8 +209,8 @@ Resources:
               "runner_name": "tndx-rmrfslashbin-01",
               "function": "user",
               "region": "${ParamRegion}",
-              "ddb_params_table": "${DDBParametersTable}",
-              "ddb_runner_table": "${DDBRunnerTable}",
+              "ddb_params_table": "${ParameterDDBParams}",
+              "ddb_runner_table": "${ParameterDDBRunner}",
               "sqs_runner_url": "${ParameterSQSRunner}",
               "s3_bucket": "${ParameterS3Bucket}",
               "twitter_api_key": "${ParameterTwitterAPIKey}",

@@ -27,42 +27,42 @@ type DDBDriver struct {
 }
 
 type TweetsItem struct {
-	Domain     string `json:"domain"`
-	UserID     int64  `json:"userid"`
-	MaxID      int64  `json:"maxid"`
-	SinceID    int64  `json:"sinceid"`
-	LastUpdate int64  `json:"lastupdate"`
+	Domain     string `json:"Domain"`
+	UserID     int64  `json:"UserID"`
+	MaxID      int64  `json:"MaxID"`
+	SinceID    int64  `json:"SinceID"`
+	LastUpdate int64  `json:"LastUpdate"`
 }
 
 type FavoritesItem struct {
-	Domain     string `json:"domain"`
-	UserID     int64  `json:"userid"`
-	MaxID      int64  `json:"maxid"`
-	SinceID    int64  `json:"sinceid"`
-	LastUpdate int64  `json:"lastupdate"`
+	Domain     string `json:"Domain"`
+	UserID     int64  `json:"UserID"`
+	MaxID      int64  `json:"MaxID"`
+	SinceID    int64  `json:"SinceID"`
+	LastUpdate int64  `json:"LastUpdate"`
 }
 
 type FollowersItem struct {
-	Domain         string `json:"domain"`
-	UserID         int64  `json:"userid"`
-	NextCursor     int64  `json:"nextcursor"`
-	PreviousCursor int64  `json:"previouscursor"`
-	LastUpdate     int64  `json:"lastupdate"`
+	Domain         string `json:"Domain"`
+	UserID         int64  `json:"UserID"`
+	NextCursor     int64  `json:"NextCursor"`
+	PreviousCursor int64  `json:"PreviousCursor"`
+	LastUpdate     int64  `json:"LastUpdate"`
 }
 
 type FriendsItem struct {
-	Domain         string `json:"domain"`
-	UserID         int64  `json:"userid"`
-	NextCursor     int64  `json:"nextcursor"`
-	PreviousCursor int64  `json:"previouscursor"`
-	LastUpdate     int64  `json:"lastupdate"`
+	Domain         string `json:"Domain"`
+	UserID         int64  `json:"UserID"`
+	NextCursor     int64  `json:"NextCursor"`
+	PreviousCursor int64  `json:"PreviousCursor"`
+	LastUpdate     int64  `json:"LastUpdate"`
 }
 
 type RunnerItem struct {
-	RunnerName string `json:"runnername"`
-	UserID     int64  `json:"userid"`
-	Flags      Bits   `json:"flags"`
-	LastUpdate int64  `json:"lastupdate"`
+	RunnerName string `json:"RunnerName"`
+	UserID     int64  `json:"UserID"`
+	Flags      Bits   `json:"Flags"`
+	LastUpdate int64  `json:"LastUpdate"`
 }
 
 const (
@@ -144,8 +144,8 @@ func (config *DDBDriver) GetFavoritesConfig(userID int64) (*TweetConfigQuery, er
 	result, err := config.db.GetItem(context.TODO(), &dynamodb.GetItemInput{
 		TableName: aws.String(config.table),
 		Key: map[string]types.AttributeValue{
-			"userid": &types.AttributeValueMemberN{Value: strconv.FormatInt(userID, 10)},
-			"domain": &types.AttributeValueMemberS{Value: "favorites"},
+			"UserID": &types.AttributeValueMemberN{Value: strconv.FormatInt(userID, 10)},
+			"Domain": &types.AttributeValueMemberS{Value: "favorites"},
 		},
 	})
 
@@ -171,8 +171,8 @@ func (config *DDBDriver) GetFollowersConfig(userID int64) (*CursoredTweetConfigQ
 	result, err := config.db.GetItem(context.TODO(), &dynamodb.GetItemInput{
 		TableName: aws.String(config.table),
 		Key: map[string]types.AttributeValue{
-			"userid": &types.AttributeValueMemberN{Value: strconv.FormatInt(userID, 10)},
-			"domain": &types.AttributeValueMemberS{Value: "followers"},
+			"UserID": &types.AttributeValueMemberN{Value: strconv.FormatInt(userID, 10)},
+			"Domain": &types.AttributeValueMemberS{Value: "followers"},
 		},
 	})
 
@@ -197,8 +197,8 @@ func (config *DDBDriver) GetFriendsConfig(userID int64) (*CursoredTweetConfigQue
 	result, err := config.db.GetItem(context.TODO(), &dynamodb.GetItemInput{
 		TableName: aws.String(config.table),
 		Key: map[string]types.AttributeValue{
-			"userid": &types.AttributeValueMemberN{Value: strconv.FormatInt(userID, 10)},
-			"domain": &types.AttributeValueMemberS{Value: "friends"},
+			"UserID": &types.AttributeValueMemberN{Value: strconv.FormatInt(userID, 10)},
+			"Domain": &types.AttributeValueMemberS{Value: "friends"},
 		},
 	})
 
@@ -258,8 +258,8 @@ func (config *DDBDriver) GetTimelineConfig(userID int64) (*TweetConfigQuery, err
 	result, err := config.db.GetItem(context.TODO(), &dynamodb.GetItemInput{
 		TableName: aws.String(config.table),
 		Key: map[string]types.AttributeValue{
-			"userid": &types.AttributeValueMemberN{Value: strconv.FormatInt(userID, 10)},
-			"domain": &types.AttributeValueMemberS{Value: "tweets"},
+			"UserID": &types.AttributeValueMemberN{Value: strconv.FormatInt(userID, 10)},
+			"Domain": &types.AttributeValueMemberS{Value: "tweets"},
 		},
 	})
 

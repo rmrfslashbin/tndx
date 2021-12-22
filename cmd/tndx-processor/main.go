@@ -117,8 +117,9 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 
 		if err != nil {
 			log.WithFields(logrus.Fields{
-				"action": "getParams",
-				"error":  err.Error(),
+				"action":    "getParams",
+				"error":     err.Error(),
+				"bootstrap": bootstrap,
 			}).Error("error getting parameters.")
 			return err
 		}
@@ -132,6 +133,7 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 
 		svc.db = database.NewDDB(
 			database.SetDDBLogger(log),
+			database.SetDDBRegion(aws_region),
 			database.SetDDBTable(outputs.Params[bootstrap.DDBParamsTable].(string)),
 			database.SetDDBRunnerTable(outputs.Params[bootstrap.DDBRunnerTable].(string)),
 		)

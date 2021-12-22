@@ -50,7 +50,6 @@ func main() {
 }
 
 func handler(ctx context.Context, message Message) error {
-
 	if message.RunnerName == "" {
 		return errors.New("runner name is required")
 	}
@@ -85,9 +84,6 @@ func handler(ctx context.Context, message Message) error {
 		message.DDBParamsTable,
 		message.DDBRunnerTable,
 		message.SQSRunnerURL,
-		message.S3Bucket,
-		message.TwitterAPIKey,
-		message.TwitterAPISecret,
 	})
 
 	if err != nil {
@@ -126,12 +122,12 @@ func handler(ctx context.Context, message Message) error {
 	}
 
 	bootstrap := &queue.Bootstrap{
-		S3Bucket:         outputs.Params[message.S3Bucket].(string),
-		DDBParamsTable:   outputs.Params[message.DDBParamsTable].(string),
-		DDBRunnerTable:   outputs.Params[message.DDBRunnerTable].(string),
-		TwitterAPIKey:    outputs.Params[message.TwitterAPIKey].(string),
-		TwitterAPISecret: outputs.Params[message.TwitterAPISecret].(string),
-		SQSRunnerURL:     outputs.Params[message.SQSRunnerURL].(string),
+		S3Bucket:         message.S3Bucket,
+		DDBParamsTable:   message.DDBParamsTable,
+		DDBRunnerTable:   message.DDBRunnerTable,
+		TwitterAPIKey:    message.TwitterAPIKey,
+		TwitterAPISecret: message.TwitterAPISecret,
+		SQSRunnerURL:     message.SQSRunnerURL,
 	}
 
 	switch message.Function {
@@ -139,20 +135,22 @@ func handler(ctx context.Context, message Message) error {
 		bootstrap.Function = "favorites"
 		for _, user := range users {
 			if database.Has(user.Flags, database.F_favorites) {
-				if err := q.SendRunnerMessage(&queue.SendMessage{
+				params := &queue.SendMessage{
 					Bootstrap: bootstrap,
 					Message: &queue.ProcessorMessage{
 						UserID: user.UserID,
 					},
-				}); err != nil {
+				}
+				if err := q.SendRunnerMessage(params); err != nil {
 					log.WithFields(logrus.Fields{
 						"action": "sendRunnerMessage",
 						"error":  err.Error(),
+						"params": params,
 					}).Error("error sending runner message.")
 					return err
 				}
 				log.WithFields(logrus.Fields{
-					"bootstrap": bootstrap,
+					"params": params,
 				}).Info("favorites sent.")
 			}
 		}
@@ -161,20 +159,22 @@ func handler(ctx context.Context, message Message) error {
 		bootstrap.Function = "followers"
 		for _, user := range users {
 			if database.Has(user.Flags, database.F_followers) {
-				if err := q.SendRunnerMessage(&queue.SendMessage{
+				params := &queue.SendMessage{
 					Bootstrap: bootstrap,
 					Message: &queue.ProcessorMessage{
 						UserID: user.UserID,
 					},
-				}); err != nil {
+				}
+				if err := q.SendRunnerMessage(params); err != nil {
 					log.WithFields(logrus.Fields{
 						"action": "sendRunnerMessage",
 						"error":  err.Error(),
+						"params": params,
 					}).Error("error sending runner message.")
 					return err
 				}
 				log.WithFields(logrus.Fields{
-					"bootstrap": bootstrap,
+					"params": params,
 				}).Info("followers sent.")
 			}
 		}
@@ -182,20 +182,22 @@ func handler(ctx context.Context, message Message) error {
 		bootstrap.Function = "friends"
 		for _, user := range users {
 			if database.Has(user.Flags, database.F_friends) {
-				if err := q.SendRunnerMessage(&queue.SendMessage{
+				params := &queue.SendMessage{
 					Bootstrap: bootstrap,
 					Message: &queue.ProcessorMessage{
 						UserID: user.UserID,
 					},
-				}); err != nil {
+				}
+				if err := q.SendRunnerMessage(params); err != nil {
 					log.WithFields(logrus.Fields{
 						"action": "sendRunnerMessage",
 						"error":  err.Error(),
+						"params": params,
 					}).Error("error sending runner message.")
 					return err
 				}
 				log.WithFields(logrus.Fields{
-					"bootstrap": bootstrap,
+					"params": params,
 				}).Info("friends sent.")
 			}
 		}
@@ -203,20 +205,22 @@ func handler(ctx context.Context, message Message) error {
 		bootstrap.Function = "timeline"
 		for _, user := range users {
 			if database.Has(user.Flags, database.F_timeline) {
-				if err := q.SendRunnerMessage(&queue.SendMessage{
+				params := &queue.SendMessage{
 					Bootstrap: bootstrap,
 					Message: &queue.ProcessorMessage{
 						UserID: user.UserID,
 					},
-				}); err != nil {
+				}
+				if err := q.SendRunnerMessage(params); err != nil {
 					log.WithFields(logrus.Fields{
 						"action": "sendRunnerMessage",
 						"error":  err.Error(),
+						"params": params,
 					}).Error("error sending runner message.")
 					return err
 				}
 				log.WithFields(logrus.Fields{
-					"bootstrap": bootstrap,
+					"params": params,
 				}).Info("timeline sent.")
 			}
 		}
@@ -224,20 +228,22 @@ func handler(ctx context.Context, message Message) error {
 		bootstrap.Function = "user"
 		for _, user := range users {
 			if database.Has(user.Flags, database.F_user) {
-				if err := q.SendRunnerMessage(&queue.SendMessage{
+				params := &queue.SendMessage{
 					Bootstrap: bootstrap,
 					Message: &queue.ProcessorMessage{
 						UserID: user.UserID,
 					},
-				}); err != nil {
+				}
+				if err := q.SendRunnerMessage(params); err != nil {
 					log.WithFields(logrus.Fields{
 						"action": "sendRunnerMessage",
 						"error":  err.Error(),
+						"params": params,
 					}).Error("error sending runner message.")
 					return err
 				}
 				log.WithFields(logrus.Fields{
-					"bootstrap": bootstrap,
+					"params": params,
 				}).Info("user sent.")
 			}
 		}
