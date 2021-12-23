@@ -21,6 +21,11 @@ Parameters:
     Default: tndx-runner
     Description: DDD runner table.
 
+  ParamDeliveryStreamTimelinesName:
+    Type: String
+    Default: tndx-timelines
+    Description: Delivery stream for timelines.
+
   ParamEnvironment:
     Type: String
     Default: staging
@@ -121,6 +126,12 @@ Resources:
     Type: AWS::KinesisFirehose::DeliveryStream
     Properties:
       DeliveryStreamType: DirectPut
+      DeliveryStreamName: !Ref ParamDeliveryStreamTimelinesName
+      Tags:
+        - Key: "Environment"
+          Value: { Ref: ParamEnvironment }
+        - Key: "Application"
+          Value: { Ref: ParamAppName }
       ExtendedS3DestinationConfiguration:
         RoleARN: !GetAtt RoleDelivery.Arn
         BucketARN: !Join
@@ -128,7 +139,7 @@ Resources:
           - - "arn:aws:s3:::"
             - !Ref S3Bucket
         Prefix: "processed/timelines/user_id=!{partitionKeyFromQuery:user_id}/screen_name=!{partitionKeyFromQuery:screen_name}/"
-        ErrorOutputPrefix: "errors/"
+        ErrorOutputPrefix: "errors/timelines/"
         BufferingHints:
           SizeInMBs: 128
           IntervalInSeconds: 300
@@ -142,7 +153,28 @@ Resources:
             - - "KDF-"
               - !Ref GlueTableTndxTimelines
           LogStreamName: S3Delivery
-        S3BackupMode: Disabled
+        S3BackupMode: Enabled
+        S3BackupConfiguration:
+          RoleARN: !GetAtt RoleDelivery.Arn
+          BucketARN: !Join
+            - ""
+            - - "arn:aws:s3:::"
+              - !Ref S3Bucket
+          Prefix: "backup/timelines/"
+          ErrorOutputPrefix: "backup/timelines/errors/"
+          BufferingHints:
+            SizeInMBs: 128
+            IntervalInSeconds: 300
+          CompressionFormat: GZIP
+          EncryptionConfiguration:
+            NoEncryptionConfig: NoEncryption
+          CloudWatchLoggingOptions:
+            Enabled: true
+            LogGroupName: !Join
+              - ""
+              - - "KDF-Backup"
+                - !Ref GlueTableTndxTimelines
+            LogStreamName: S3Delivery
         DynamicPartitioningConfiguration:
           Enabled: true
           RetryOptions:
@@ -153,7 +185,7 @@ Resources:
             - Type: MetadataExtraction
               Parameters:
                 - ParameterName: MetadataExtractionQuery
-                  ParameterValue: "{user_id : (.user.id) | screen_name : (.user.screen_name}"
+                  ParameterValue: "{user_id : (.user.id), screen_name : (.user.screen_name)}"
                 - ParameterName: JsonParsingEngine
                   ParameterValue: JQ-1.6
         DataFormatConversionConfiguration:
@@ -411,7 +443,7 @@ Resources:
           InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
           OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
           Location: !Sub
-            - arn:aws:s3:::${Bucket}/processed/timelines/
+            - s3://${Bucket}/processed/timelines/
             - { Bucket: !Ref S3BucketName }
           Compressed: false
           NumberOfBuckets: -1
@@ -447,6 +479,17 @@ Resources:
       Type: String
       Value: { Ref: ParamDDBRunnerTable }
       Description: tndx ddb parameters table
+      Tags:
+        Environment: { Ref: ParamEnvironment }
+        Application: { Ref: ParamAppName }
+
+  ParameterDeliveryStreamTimelines:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /tndx/delivery/timelines
+      Type: String
+      Value: { Ref: ParamDeliveryStreamTimelinesName }
+      Description: tndx timeline delivery stream
       Tags:
         Environment: { Ref: ParamEnvironment }
         Application: { Ref: ParamAppName }
@@ -660,7 +703,9 @@ Resources:
                 Action: "glue:GetTableVersions"
                 Resource: "*"
               - Effect: Allow
-                Action: "logs:PutLogEvents"
+                Action:
+                  - "logs:PutLogEvents"
+                  - "logs:Create*"
                 Resource:
                   - !Join
                     - ""

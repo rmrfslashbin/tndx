@@ -11,7 +11,7 @@ import (
 
 const (
 	region         = "us-east-2"
-	deliveryStream = "PUT-S3-12bor"
+	deliveryStream = "tndx-timelines"
 	jsonPath       = "/Users/rmrfslashbin/tndx2/timeline/16020064"
 )
 
