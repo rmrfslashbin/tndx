@@ -2,9 +2,20 @@ package service
 
 import (
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/dghubble/go-twitter/twitter"
 )
+
+func FixTwitterTime(timeStr string) (string, error) {
+	const layout = "Mon Jan 2 15:04:05 -0700 2006"
+	if t, err := time.Parse(layout, timeStr); err != nil {
+		return "", err
+	} else {
+		return strconv.FormatInt(t.Unix(), 10), nil
+	}
+}
 
 // GetUser returns a Twitter user's details.
 func (config *Config) GetUser(queryParams *QueryParams) (*twitter.User, *http.Response, error) {
@@ -26,6 +37,15 @@ func (c *Config) GetUserFavorites(queryParams *QueryParams) ([]twitter.Tweet, *h
 		SinceID:    queryParams.SinceID,
 		MaxID:      queryParams.MaxID,
 	})
+	for tweet := range tweets {
+		tweets[tweet].CreatedAt, _ = FixTwitterTime(tweets[tweet].CreatedAt)
+		tweets[tweet].User.CreatedAt, _ = FixTwitterTime(tweets[tweet].User.CreatedAt)
+		if tweets[tweet].RetweetedStatus != nil {
+			tweets[tweet].RetweetedStatus.CreatedAt, _ = FixTwitterTime(tweets[tweet].RetweetedStatus.CreatedAt)
+			tweets[tweet].RetweetedStatus.User.CreatedAt, _ = FixTwitterTime(tweets[tweet].RetweetedStatus.User.CreatedAt)
+		}
+	}
+
 	return tweets, resp, err
 }
 
@@ -67,5 +87,13 @@ func (c *Config) GetUserTimeline(queryParams *QueryParams) ([]twitter.Tweet, *ht
 		SinceID:    queryParams.SinceID,
 		MaxID:      queryParams.MaxID,
 	})
+	for tweet := range tweets {
+		tweets[tweet].CreatedAt, _ = FixTwitterTime(tweets[tweet].CreatedAt)
+		tweets[tweet].User.CreatedAt, _ = FixTwitterTime(tweets[tweet].User.CreatedAt)
+		if tweets[tweet].RetweetedStatus != nil {
+			tweets[tweet].RetweetedStatus.CreatedAt, _ = FixTwitterTime(tweets[tweet].RetweetedStatus.CreatedAt)
+			tweets[tweet].RetweetedStatus.User.CreatedAt, _ = FixTwitterTime(tweets[tweet].RetweetedStatus.User.CreatedAt)
+		}
+	}
 	return tweets, resp, err
 }

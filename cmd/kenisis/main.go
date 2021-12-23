@@ -1,11 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path"
 
+	"github.com/dghubble/go-twitter/twitter"
 	"github.com/rmrfslashbin/tndx/pkg/kenisis"
+	"github.com/rmrfslashbin/tndx/pkg/service"
 	"github.com/sirupsen/logrus"
 )
 
@@ -45,7 +48,31 @@ func main() {
 		}
 		defer jsonFile.Close()
 		byteValue, _ := ioutil.ReadAll(jsonFile)
-		if opt, err := k.PutRecord(byteValue); err != nil {
+
+		tweet := &twitter.Tweet{}
+		if err := json.Unmarshal(byteValue, tweet); err != nil {
+			log.WithFields(logrus.Fields{
+				"error": err,
+				"file":  fqpn,
+			}).Fatal("failed unmarshalling file")
+		}
+
+		tweet.CreatedAt, _ = service.FixTwitterTime(tweet.CreatedAt)
+		tweet.User.CreatedAt, _ = service.FixTwitterTime(tweet.User.CreatedAt)
+		if tweet.RetweetedStatus != nil {
+			tweet.RetweetedStatus.CreatedAt, _ = service.FixTwitterTime(tweet.RetweetedStatus.CreatedAt)
+			tweet.RetweetedStatus.User.CreatedAt, _ = service.FixTwitterTime(tweet.RetweetedStatus.User.CreatedAt)
+		}
+
+		rawBytes, err := json.Marshal(tweet)
+		if err != nil {
+			log.WithFields(logrus.Fields{
+				"error": err,
+				"file":  fqpn,
+			}).Fatal("failed marshalling tweet to bytes")
+		}
+
+		if opt, err := k.PutRecord(rawBytes); err != nil {
 			log.WithFields(logrus.Fields{
 				"file":  fqpn,
 				"error": err,
