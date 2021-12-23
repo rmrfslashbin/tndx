@@ -172,7 +172,7 @@ Resources:
             Enabled: true
             LogGroupName: !Join
               - ""
-              - - "KDF-Backup"
+              - - "KDF-Backup-"
                 - !Ref GlueTableTndxTimelines
             LogStreamName: S3Delivery
         DynamicPartitioningConfiguration:
