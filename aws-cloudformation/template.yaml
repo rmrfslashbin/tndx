@@ -704,8 +704,10 @@ Resources:
                 Resource: "*"
               - Effect: Allow
                 Action:
+                  - "logs:CreateLogStream"
+                  - "logs:PutRetentionPolicy"
+                  - "logs:CreateLogGroup"
                   - "logs:PutLogEvents"
-                  - "logs:Create*"
                 Resource:
                   - !Join
                     - ""
