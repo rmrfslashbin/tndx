@@ -165,7 +165,15 @@ func (config *SqliteDatabaseDriver) PutTimelineConfig(query *TweetConfigQuery) e
 	return err
 }
 
-func (config *SqliteDatabaseDriver) PutFavorites(favorites []*Favorite) error {
+func (config *SqliteDatabaseDriver) PutFavorites(favorites []*UserToTweetLink) error {
+	return errors.New("not implemented")
+}
+
+func (config *SqliteDatabaseDriver) PutFollowers(followers []*UserToFollowerLink) error {
+	return errors.New("not implemented")
+}
+
+func (config *SqliteDatabaseDriver) PutFriends(friends []*UserToFriendLink) error {
 	return errors.New("not implemented")
 }
 

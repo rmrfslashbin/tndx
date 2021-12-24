@@ -218,8 +218,7 @@ func setup() {
 
 	aws_region := viper.GetString("AWS_REGION")
 	aws_profile := viper.GetString("AWS_PROFILE")
-	ddb_params_table := viper.GetString("DDB_PARAMS_TABLE")
-	ddb_runner_table := viper.GetString("DDB_RUNNER_TABLE")
+	ddb_table_prefix := viper.GetString("DDB_TABLE_PERFIX")
 	twitter_api_key := viper.GetString("TWITTER_API_KEY")
 	twitter_api_secret := viper.GetString("TWITTER_API_SECRET")
 
@@ -229,11 +228,8 @@ func setup() {
 	if aws_profile == "" {
 		log.Fatal("AWS_PROFILE not set")
 	}
-	if ddb_params_table == "" {
-		log.Fatal("DDB_PARAMS_TABLE not set")
-	}
-	if ddb_runner_table == "" {
-		log.Fatal("DDB_RUNNER_TABLE not set")
+	if ddb_table_prefix == "" {
+		log.Fatal("DDB_TABLE_PERFIX not set")
 	}
 	if twitter_api_key == "" {
 		log.Fatal("TWITTER_API_KEY not set")
@@ -254,8 +250,7 @@ func setup() {
 	}
 
 	outputs, err := params.GetParams([]string{
-		ddb_params_table,
-		ddb_runner_table,
+		ddb_table_prefix,
 		twitter_api_key,
 		twitter_api_secret,
 	})
@@ -277,8 +272,7 @@ func setup() {
 
 	svc.db = database.NewDDB(
 		database.SetDDBLogger(log),
-		database.SetDDBTable(outputs.Parameters[ddb_params_table].(string)),
-		database.SetDDBRunnerTable(outputs.Parameters[ddb_runner_table].(string)),
+		database.SetDDBTablePrefix(outputs.Parameters[ddb_table_prefix].(string)),
 		database.SetDDBRegion(aws_region),
 	)
 }

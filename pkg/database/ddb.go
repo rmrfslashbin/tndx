@@ -23,6 +23,8 @@ type DDBDriver struct {
 	tablePrefix    string
 	region         string
 	favoritesTable string
+	friendsTable   string
+	followersTable string
 	runnerTable    string
 	paramsTable    string
 	db             *dynamodb.Client
@@ -36,9 +38,19 @@ type TweetsItem struct {
 	LastUpdate int64  `json:"LastUpdate"`
 }
 
-type Favorite struct {
+type UserToTweetLink struct {
 	UserID  int64 `json:"UserID"`
 	TweetID int64 `json:"TweetID"`
+}
+
+type UserToFollowerLink struct {
+	UserID     int64 `json:"UserID"`
+	FollowerID int64 `json:"FollowerID"`
+}
+
+type UserToFriendLink struct {
+	UserID   int64 `json:"UserID"`
+	FriendID int64 `json:"FriendID"`
 }
 
 type FavoritesItem struct {
@@ -117,8 +129,10 @@ func SetDDBTablePrefix(tablePrefix string) func(*DDBDriver) {
 	return func(config *DDBDriver) {
 		config.tablePrefix = tablePrefix
 		config.favoritesTable = tablePrefix + "favorites"
+		config.friendsTable = tablePrefix + "friends"
+		config.followersTable = tablePrefix + "followers"
 		config.runnerTable = tablePrefix + "runner"
-		config.paramsTable = tablePrefix + "params"
+		config.paramsTable = tablePrefix + "parameters"
 	}
 }
 
@@ -285,15 +299,49 @@ func (config *DDBDriver) GetTimelineConfig(userID int64) (*TweetConfigQuery, err
 	return item, nil
 }
 
-func (config *DDBDriver) PutFavorites(favorites []*Favorite) error {
-	for _, favorite := range favorites {
-		kvp, err := attributevalue.MarshalMap(favorite)
+func (config *DDBDriver) PutFavorites(links []*UserToTweetLink) error {
+	for _, link := range links {
+		kvp, err := attributevalue.MarshalMap(link)
 		if err != nil {
 			return err
 		}
 
 		if _, err := config.db.PutItem(context.TODO(), &dynamodb.PutItemInput{
 			TableName: aws.String(config.favoritesTable),
+			Item:      kvp,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (config *DDBDriver) PutFollowers(links []*UserToFollowerLink) error {
+	for _, link := range links {
+		kvp, err := attributevalue.MarshalMap(link)
+		if err != nil {
+			return err
+		}
+
+		if _, err := config.db.PutItem(context.TODO(), &dynamodb.PutItemInput{
+			TableName: aws.String(config.followersTable),
+			Item:      kvp,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (config *DDBDriver) PutFriends(links []*UserToFriendLink) error {
+	for _, link := range links {
+		kvp, err := attributevalue.MarshalMap(link)
+		if err != nil {
+			return err
+		}
+
+		if _, err := config.db.PutItem(context.TODO(), &dynamodb.PutItemInput{
+			TableName: aws.String(config.friendsTable),
 			Item:      kvp,
 		}); err != nil {
 			return err

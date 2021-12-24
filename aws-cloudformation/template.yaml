@@ -79,31 +79,8 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: !Sub
-        - "${DDBTablePrefix}-favorites"
-        - { DDBTablePrefix: Ref ParamDDBTablePrefix }
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: UserID
-          AttributeType: N
-        - AttributeName: TweetID
-          AttributeType: N
-      KeySchema:
-        - AttributeName: UserID
-          KeyType: HASH
-        - AttributeName: TweetID
-          KeyType: RANGE
-      Tags:
-        - Key: "Environment"
-          Value: { Ref: ParamEnvironment }
-        - Key: "Application"
-          Value: { Ref: ParamAppName }
-
-  DDBFriendsTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub
-        - "${DDBTablePrefix}-friends"
-        - { DDBTablePrefix: Ref ParamDDBTablePrefix }
+        - ${DDBTablePrefix}favorites
+        - { DDBTablePrefix: !Ref ParamDDBTablePrefix }
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: UserID
@@ -125,18 +102,41 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: !Sub
-        - "${DDBTablePrefix}-followers"
-        - { DDBTablePrefix: Ref ParamDDBTablePrefix }
+        - ${DDBTablePrefix}followers
+        - { DDBTablePrefix: !Ref ParamDDBTablePrefix }
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: UserID
           AttributeType: N
-        - AttributeName: TweetID
+        - AttributeName: FollowerID
           AttributeType: N
       KeySchema:
         - AttributeName: UserID
           KeyType: HASH
-        - AttributeName: TweetID
+        - AttributeName: FollowerID
+          KeyType: RANGE
+      Tags:
+        - Key: "Environment"
+          Value: { Ref: ParamEnvironment }
+        - Key: "Application"
+          Value: { Ref: ParamAppName }
+
+  DDBFriendsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub
+        - ${DDBTablePrefix}friends
+        - { DDBTablePrefix: !Ref ParamDDBTablePrefix }
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: UserID
+          AttributeType: N
+        - AttributeName: FriendID
+          AttributeType: N
+      KeySchema:
+        - AttributeName: UserID
+          KeyType: HASH
+        - AttributeName: FriendID
           KeyType: RANGE
       Tags:
         - Key: "Environment"
@@ -148,8 +148,8 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: !Sub
-        - "${DDBTablePrefix}-parameters"
-        - { DDBTablePrefix: Ref ParamDDBTablePrefix }
+        - ${DDBTablePrefix}parameters
+        - { DDBTablePrefix: !Ref ParamDDBTablePrefix }
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: UserID
@@ -171,8 +171,8 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: !Sub
-        - "${DDBTablePrefix}-runner"
-        - { DDBTablePrefix: Ref ParamDDBTablePrefix }
+        - ${DDBTablePrefix}runner
+        - { DDBTablePrefix: !Ref ParamDDBTablePrefix }
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: RunnerName

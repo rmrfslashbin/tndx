@@ -57,7 +57,7 @@ func handler(ctx context.Context, message Message) error {
 		return errors.New("function is required")
 	}
 	if message.DDBTablePrefix == "" {
-		return errors.New("ddb favorites table is required")
+		return errors.New("ddb table prefix is required")
 	}
 	if message.DeliveryStream == "" {
 		return errors.New("delivery stream is required")
@@ -81,7 +81,7 @@ func handler(ctx context.Context, message Message) error {
 	)
 
 	outputs, err := params.GetParams([]string{
-
+		message.DDBTablePrefix,
 		message.SQSRunnerURL,
 	})
 
@@ -98,6 +98,13 @@ func handler(ctx context.Context, message Message) error {
 			"invalid_parameters": outputs.InvalidParameters,
 		}).Error("invalid parameters")
 		return errors.New("invalid parameters")
+	}
+
+	if _, ok := outputs.Params[message.DDBTablePrefix]; !ok {
+		return errors.New("failed to get ddb table prefix")
+	}
+	if _, ok := outputs.Params[message.SQSRunnerURL]; !ok {
+		return errors.New("failed to get sqs runner url")
 	}
 
 	db = database.NewDDB(

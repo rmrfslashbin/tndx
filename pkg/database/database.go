@@ -8,7 +8,9 @@ type DatabaseDriver interface {
 	GetFriendsConfig(int64) (*CursoredTweetConfigQuery, error)
 	GetRunnerUsers(*RunnerItem) ([]*RunnerItem, error)
 	GetTimelineConfig(int64) (*TweetConfigQuery, error)
-	PutFavorites(favorites []*Favorite) error
+	PutFavorites([]*UserToTweetLink) error
+	PutFollowers([]*UserToFollowerLink) error
+	PutFriends([]*UserToFriendLink) error
 	PutFavoritesConfig(*TweetConfigQuery) error
 	PutFollowersConfig(*CursoredTweetConfigQuery) error
 	PutFriendsConfig(*CursoredTweetConfigQuery) error

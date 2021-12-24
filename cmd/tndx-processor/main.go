@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -309,11 +308,11 @@ func favorites(userid int64, bootstrap *queue.Bootstrap) error {
 	var upperID int64
 	var lowerID int64
 
-	listOfFavoriteTweets := make([]*database.Favorite, len(tweets))
+	listOfTweets := make([]*database.UserToTweetLink, len(tweets))
 
 	// Loop through all the tweets.
 	for t := range tweets {
-		listOfFavoriteTweets[t] = &database.Favorite{UserID: userid, TweetID: tweets[t].ID}
+		listOfTweets[t] = &database.UserToTweetLink{UserID: userid, TweetID: tweets[t].ID}
 		if data, err := json.Marshal(tweets[t]); err == nil {
 			if opt, err := svc.kenisis.PutRecord(data); err != nil {
 				log.WithFields(logrus.Fields{
@@ -398,7 +397,7 @@ func favorites(userid int64, bootstrap *queue.Bootstrap) error {
 		}
 	}
 
-	if err := svc.db.PutFavorites(listOfFavoriteTweets); err != nil {
+	if err := svc.db.PutFavorites(listOfTweets); err != nil {
 		logrus.WithFields(logrus.Fields{
 			"action": "favorites::PutFavorites",
 			"error":  err.Error(),
@@ -465,10 +464,13 @@ func followers(userid int64) error {
 		return err
 	}
 
+	listOfFollowers := make([]*database.UserToFollowerLink, len(followers.Users))
+
 	// Save the users.
 	for f := range followers.Users {
+		listOfFollowers[f] = &database.UserToFollowerLink{UserID: userid, FollowerID: followers.Users[f].ID}
 		if data, err := json.Marshal(followers.Users[f]); err == nil {
-			if err := svc.storage.Put(path.Join("followers", strconv.FormatInt(userid, 10), followers.Users[f].IDStr+".json"), data); err != nil {
+			if err := svc.storage.Put(path.Join("users", followers.Users[f].IDStr+".json"), data); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"action":     "followers::Put",
 					"error":      err.Error(),
@@ -479,6 +481,14 @@ func followers(userid int64) error {
 			}
 		}
 	}
+	if err := svc.db.PutFollowers(listOfFollowers); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"action": "followers::PutFollowers",
+			"error":  err.Error(),
+		}).Error("error putting followers")
+		return err
+	}
+
 	logrus.WithFields(logrus.Fields{
 		"action":         "followers::Done!",
 		"userid":         userid,
@@ -542,10 +552,13 @@ func friends(userid int64) error {
 		return err
 	}
 
+	listOfFriends := make([]*database.UserToFriendLink, len(friends.Users))
+
 	// Save the users.
 	for f := range friends.Users {
+		listOfFriends[f] = &database.UserToFriendLink{UserID: userid, FriendID: friends.Users[f].ID}
 		if data, err := json.Marshal(friends.Users[f]); err == nil {
-			if err := svc.storage.Put(path.Join("friends", strconv.FormatInt(userid, 10), friends.Users[f].IDStr+".json"), data); err != nil {
+			if err := svc.storage.Put(path.Join("users", friends.Users[f].IDStr+".json"), data); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"action":   "friends::Put",
 					"error":    err.Error(),
@@ -556,6 +569,14 @@ func friends(userid int64) error {
 			}
 		}
 	}
+	if err := svc.db.PutFriends(listOfFriends); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"action": "friends::PutFriends",
+			"error":  err.Error(),
+		}).Error("error putting friends")
+		return err
+	}
+
 	logrus.WithFields(logrus.Fields{
 		"action":         "friends::Done!",
 		"userid":         userid,

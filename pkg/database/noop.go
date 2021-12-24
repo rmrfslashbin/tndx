@@ -47,7 +47,15 @@ func (config *NoopDBDriver) GetTimelineConfig(userID int64) (*TweetConfigQuery, 
 	return nil, nil
 }
 
-func (config *NoopDBDriver) PutFavorites(favorites []*Favorite) error {
+func (config *NoopDBDriver) PutFavorites(favorites []*UserToTweetLink) error {
+	return nil
+}
+
+func (config *NoopDBDriver) PutFollowers(followers []*UserToFollowerLink) error {
+	return nil
+}
+
+func (config *NoopDBDriver) PutFriends(friends []*UserToFriendLink) error {
 	return nil
 }
 
