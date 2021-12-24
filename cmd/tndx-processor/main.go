@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/rmrfslashbin/tndx/pkg/database"
+	"github.com/rmrfslashbin/tndx/pkg/kenisis"
 	"github.com/rmrfslashbin/tndx/pkg/queue"
 	"github.com/rmrfslashbin/tndx/pkg/service"
 	"github.com/rmrfslashbin/tndx/pkg/ssmparams"
@@ -27,12 +28,12 @@ type services struct {
 	storage       storage.StorageDriver
 	db            database.DatabaseDriver
 	queue         *queue.Config
+	kenisis       *kenisis.Config
 }
 
 var (
 	aws_region string
 	log        *logrus.Logger
-	db         *database.DDBDriver
 	svc        *services
 )
 
@@ -58,6 +59,10 @@ func main() {
 }
 
 func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
+	log.WithFields(logrus.Fields{
+		"action": "handler",
+		"event":  sqsEvent,
+	}).Info("starting handler")
 	for _, message := range sqsEvent.Records {
 		messageBody := &queue.ProcessorMessage{}
 		if err := json.Unmarshal([]byte(message.Body), messageBody); err != nil {
@@ -69,10 +74,32 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 			return err
 		}
 
+		if _, ok := message.MessageAttributes["function"]; !ok {
+			return errors.New("function is required")
+		}
+		if _, ok := message.MessageAttributes["ddb_table_prefix"]; !ok {
+			return errors.New("ddb table prefix is required")
+		}
+		if _, ok := message.MessageAttributes["delivery_stream"]; !ok {
+			return errors.New("delivery stream is required")
+		}
+		if _, ok := message.MessageAttributes["sqs_runner_url"]; !ok {
+			return errors.New("sqs runner url is required")
+		}
+		if _, ok := message.MessageAttributes["s3_bucket"]; !ok {
+			return errors.New("s3 bucket is required")
+		}
+		if _, ok := message.MessageAttributes["twitter_api_key"]; !ok {
+			return errors.New("twitter api key is required")
+		}
+		if _, ok := message.MessageAttributes["twitter_api_secret"]; !ok {
+			return errors.New("twitter api secret is required")
+		}
+
 		bootstrap := &queue.Bootstrap{
 			Function:         *message.MessageAttributes["function"].StringValue,
-			DDBParamsTable:   *message.MessageAttributes["ddb_params_table"].StringValue,
-			DDBRunnerTable:   *message.MessageAttributes["ddb_runner_table"].StringValue,
+			DDBTablePrefix:   *message.MessageAttributes["ddb_table_prefix"].StringValue,
+			DeliveryStream:   *message.MessageAttributes["delivery_stream"].StringValue,
 			SQSRunnerURL:     *message.MessageAttributes["sqs_runner_url"].StringValue,
 			S3Bucket:         *message.MessageAttributes["s3_bucket"].StringValue,
 			TwitterAPIKey:    *message.MessageAttributes["twitter_api_key"].StringValue,
@@ -82,11 +109,11 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 		if bootstrap.Function == "" {
 			return errors.New("function is required")
 		}
-		if bootstrap.DDBParamsTable == "" {
-			return errors.New("ddb params table is required")
+		if bootstrap.DDBTablePrefix == "" {
+			return errors.New("ddb table prefix is required")
 		}
-		if bootstrap.DDBRunnerTable == "" {
-			return errors.New("ddb runner table is required")
+		if bootstrap.DeliveryStream == "" {
+			return errors.New("delivery stream is required")
 		}
 		if bootstrap.SQSRunnerURL == "" {
 			return errors.New("sqs runner url is required")
@@ -107,8 +134,8 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 		)
 
 		outputs, err := params.GetParams([]string{
-			bootstrap.DDBParamsTable,
-			bootstrap.DDBRunnerTable,
+			bootstrap.DDBTablePrefix,
+			bootstrap.DeliveryStream,
 			bootstrap.SQSRunnerURL,
 			bootstrap.S3Bucket,
 			bootstrap.TwitterAPIKey,
@@ -134,8 +161,7 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 		svc.db = database.NewDDB(
 			database.SetDDBLogger(log),
 			database.SetDDBRegion(aws_region),
-			database.SetDDBTable(outputs.Params[bootstrap.DDBParamsTable].(string)),
-			database.SetDDBRunnerTable(outputs.Params[bootstrap.DDBRunnerTable].(string)),
+			database.SetDDBTablePrefix(outputs.Params[bootstrap.DDBTablePrefix].(string)),
 		)
 
 		svc.queue = queue.NewSQS(
@@ -152,6 +178,12 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 			service.SetConsumerKey(outputs.Params[bootstrap.TwitterAPIKey].(string)),
 			service.SetConsumerSecret(outputs.Params[bootstrap.TwitterAPISecret].(string)),
 			service.SetLogger(log),
+		)
+
+		svc.kenisis = kenisis.NewFirehose(
+			kenisis.SetRegion(aws_region),
+			kenisis.SetLogger(log),
+			kenisis.SetDeliveryStream(outputs.Params[bootstrap.DeliveryStream].(string)),
 		)
 
 		switch bootstrap.Function {
@@ -277,18 +309,34 @@ func favorites(userid int64, bootstrap *queue.Bootstrap) error {
 	var upperID int64
 	var lowerID int64
 
+	listOfFavoriteTweets := make([]*database.Favorite, len(tweets))
+
 	// Loop through all the tweets.
 	for t := range tweets {
+		listOfFavoriteTweets[t] = &database.Favorite{UserID: userid, TweetID: tweets[t].ID}
 		if data, err := json.Marshal(tweets[t]); err == nil {
-			if err := svc.storage.Put(path.Join("favorites", strconv.FormatInt(userid, 10), tweets[t].IDStr+".json"), data); err != nil {
-				logrus.WithFields(logrus.Fields{
-					"action":  "favorites::Put",
-					"error":   err.Error(),
-					"userid":  userid,
+			if opt, err := svc.kenisis.PutRecord(data); err != nil {
+				log.WithFields(logrus.Fields{
+					"error":   err,
 					"tweetId": tweets[t].ID,
-				}).Error("error putting favorites")
-				return err
+				}).Fatal("failed putting favorite tweet into kinesis")
+			} else {
+				log.WithFields(logrus.Fields{
+					"tweetId":  tweets[t].ID,
+					"recordId": *opt.RecordId,
+				}).Info("put record")
 			}
+			/*
+				if err := svc.storage.Put(path.Join("favorites", strconv.FormatInt(userid, 10), tweets[t].IDStr+".json"), data); err != nil {
+					logrus.WithFields(logrus.Fields{
+						"action":  "favorites::Put",
+						"error":   err.Error(),
+						"userid":  userid,
+						"tweetId": tweets[t].ID,
+					}).Error("error putting favorites")
+					return err
+				}
+			*/
 		}
 
 		// Loop through all the media entities
@@ -348,6 +396,14 @@ func favorites(userid int64, bootstrap *queue.Bootstrap) error {
 			}).Error("error putting favorites config")
 			return err
 		}
+	}
+
+	if err := svc.db.PutFavorites(listOfFavoriteTweets); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"action": "favorites::PutFavorites",
+			"error":  err.Error(),
+		}).Error("error putting favorites")
+		return err
 	}
 
 	logrus.WithFields(logrus.Fields{
@@ -548,16 +604,33 @@ func timeline(userid int64, bootstrap *queue.Bootstrap) error {
 
 	// Loop through all the tweets.
 	for t := range tweets {
+		log.WithFields(logrus.Fields{
+			"action": "timeline::GetUserTimeline",
+			"tweet":  tweets[t],
+		}).Info("base tweet")
 		if data, err := json.Marshal(tweets[t]); err == nil {
-			if err := svc.storage.Put(path.Join("timeline", strconv.FormatInt(userid, 10), tweets[t].IDStr+".json"), data); err != nil {
-				logrus.WithFields(logrus.Fields{
-					"action":  "timeline::Put",
-					"error":   err.Error(),
-					"userid":  userid,
+			if opt, err := svc.kenisis.PutRecord(data); err != nil {
+				log.WithFields(logrus.Fields{
+					"error":   err,
 					"tweetId": tweets[t].ID,
-				}).Error("error putting timeline")
-				return err
+				}).Fatal("failed putting favorite tweet into kinesis")
+			} else {
+				log.WithFields(logrus.Fields{
+					"tweetId":  tweets[t].ID,
+					"recordId": *opt.RecordId,
+				}).Info("put record")
 			}
+			/*
+				if err := svc.storage.Put(path.Join("timeline", strconv.FormatInt(userid, 10), tweets[t].IDStr+".json"), data); err != nil {
+					logrus.WithFields(logrus.Fields{
+						"action":  "timeline::Put",
+						"error":   err.Error(),
+						"userid":  userid,
+						"tweetId": tweets[t].ID,
+					}).Error("error putting timeline")
+					return err
+				}
+			*/
 		}
 
 		// Loop through all the media entities

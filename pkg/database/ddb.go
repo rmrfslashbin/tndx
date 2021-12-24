@@ -18,12 +18,14 @@ type Bits uint8
 type DDBOption func(config *DDBDriver)
 
 type DDBDriver struct {
-	log         *logrus.Logger
-	driverName  string
-	table       string
-	runnerTable string
-	region      string
-	db          *dynamodb.Client
+	log            *logrus.Logger
+	driverName     string
+	tablePrefix    string
+	region         string
+	favoritesTable string
+	runnerTable    string
+	paramsTable    string
+	db             *dynamodb.Client
 }
 
 type TweetsItem struct {
@@ -32,6 +34,11 @@ type TweetsItem struct {
 	MaxID      int64  `json:"MaxID"`
 	SinceID    int64  `json:"SinceID"`
 	LastUpdate int64  `json:"LastUpdate"`
+}
+
+type Favorite struct {
+	UserID  int64 `json:"UserID"`
+	TweetID int64 `json:"TweetID"`
 }
 
 type FavoritesItem struct {
@@ -106,15 +113,12 @@ func SetDDBRegion(region string) func(*DDBDriver) {
 	}
 }
 
-func SetDDBTable(table string) func(*DDBDriver) {
+func SetDDBTablePrefix(tablePrefix string) func(*DDBDriver) {
 	return func(config *DDBDriver) {
-		config.table = table
-	}
-}
-
-func SetDDBRunnerTable(table string) func(*DDBDriver) {
-	return func(config *DDBDriver) {
-		config.runnerTable = table
+		config.tablePrefix = tablePrefix
+		config.favoritesTable = tablePrefix + "favorites"
+		config.runnerTable = tablePrefix + "runner"
+		config.paramsTable = tablePrefix + "params"
 	}
 }
 
@@ -142,7 +146,7 @@ func (config *DDBDriver) GetDriverName() string {
 
 func (config *DDBDriver) GetFavoritesConfig(userID int64) (*TweetConfigQuery, error) {
 	result, err := config.db.GetItem(context.TODO(), &dynamodb.GetItemInput{
-		TableName: aws.String(config.table),
+		TableName: aws.String(config.paramsTable),
 		Key: map[string]types.AttributeValue{
 			"UserID": &types.AttributeValueMemberN{Value: strconv.FormatInt(userID, 10)},
 			"Domain": &types.AttributeValueMemberS{Value: "favorites"},
@@ -169,7 +173,7 @@ func (config *DDBDriver) GetFavoritesConfig(userID int64) (*TweetConfigQuery, er
 
 func (config *DDBDriver) GetFollowersConfig(userID int64) (*CursoredTweetConfigQuery, error) {
 	result, err := config.db.GetItem(context.TODO(), &dynamodb.GetItemInput{
-		TableName: aws.String(config.table),
+		TableName: aws.String(config.paramsTable),
 		Key: map[string]types.AttributeValue{
 			"UserID": &types.AttributeValueMemberN{Value: strconv.FormatInt(userID, 10)},
 			"Domain": &types.AttributeValueMemberS{Value: "followers"},
@@ -195,7 +199,7 @@ func (config *DDBDriver) GetFollowersConfig(userID int64) (*CursoredTweetConfigQ
 
 func (config *DDBDriver) GetFriendsConfig(userID int64) (*CursoredTweetConfigQuery, error) {
 	result, err := config.db.GetItem(context.TODO(), &dynamodb.GetItemInput{
-		TableName: aws.String(config.table),
+		TableName: aws.String(config.paramsTable),
 		Key: map[string]types.AttributeValue{
 			"UserID": &types.AttributeValueMemberN{Value: strconv.FormatInt(userID, 10)},
 			"Domain": &types.AttributeValueMemberS{Value: "friends"},
@@ -256,7 +260,7 @@ func (config *DDBDriver) GetRunnerUsers(runnerUsers *RunnerItem) ([]*RunnerItem,
 
 func (config *DDBDriver) GetTimelineConfig(userID int64) (*TweetConfigQuery, error) {
 	result, err := config.db.GetItem(context.TODO(), &dynamodb.GetItemInput{
-		TableName: aws.String(config.table),
+		TableName: aws.String(config.paramsTable),
 		Key: map[string]types.AttributeValue{
 			"UserID": &types.AttributeValueMemberN{Value: strconv.FormatInt(userID, 10)},
 			"Domain": &types.AttributeValueMemberS{Value: "tweets"},
@@ -281,6 +285,23 @@ func (config *DDBDriver) GetTimelineConfig(userID int64) (*TweetConfigQuery, err
 	return item, nil
 }
 
+func (config *DDBDriver) PutFavorites(favorites []*Favorite) error {
+	for _, favorite := range favorites {
+		kvp, err := attributevalue.MarshalMap(favorite)
+		if err != nil {
+			return err
+		}
+
+		if _, err := config.db.PutItem(context.TODO(), &dynamodb.PutItemInput{
+			TableName: aws.String(config.favoritesTable),
+			Item:      kvp,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (config *DDBDriver) PutFavoritesConfig(query *TweetConfigQuery) error {
 	now := time.Now()
 
@@ -296,7 +317,7 @@ func (config *DDBDriver) PutFavoritesConfig(query *TweetConfigQuery) error {
 	}
 
 	if _, err := config.db.PutItem(context.TODO(), &dynamodb.PutItemInput{
-		TableName: aws.String(config.table),
+		TableName: aws.String(config.paramsTable),
 		Item:      kvp,
 	}); err != nil {
 		return err
@@ -318,7 +339,7 @@ func (config *DDBDriver) PutFollowersConfig(query *CursoredTweetConfigQuery) err
 	}
 	if _, err := config.db.PutItem(context.TODO(), &dynamodb.PutItemInput{
 		Item:      kvp,
-		TableName: aws.String(config.table),
+		TableName: aws.String(config.paramsTable),
 	}); err != nil {
 		return err
 	}
@@ -340,7 +361,7 @@ func (config *DDBDriver) PutFriendsConfig(query *CursoredTweetConfigQuery) error
 
 	if _, err := config.db.PutItem(context.TODO(), &dynamodb.PutItemInput{
 		Item:      kvp,
-		TableName: aws.String(config.table),
+		TableName: aws.String(config.paramsTable),
 	}); err != nil {
 		return err
 	}
@@ -362,7 +383,7 @@ func (config *DDBDriver) PutTimelineConfig(query *TweetConfigQuery) error {
 
 	if _, err := config.db.PutItem(context.TODO(), &dynamodb.PutItemInput{
 		Item:      kvp,
-		TableName: aws.String(config.table),
+		TableName: aws.String(config.paramsTable),
 	}); err != nil {
 		return err
 	}

@@ -14,8 +14,8 @@ import (
 
 type Bootstrap struct {
 	Function         string `json:"function"`
-	DDBParamsTable   string `json:"ddb_params_table"`
-	DDBRunnerTable   string `json:"ddb_runner_table"`
+	DDBTablePrefix   string `json:"ddb_table_prefix"`
+	DeliveryStream   string `json:"delivery_stream"`
 	SQSRunnerURL     string `json:"sqs_runner_url"`
 	S3Bucket         string `json:"s3_bucket"`
 	TwitterAPIKey    string `json:"twitter_api_key"`
@@ -95,8 +95,8 @@ func (config *Config) SendRunnerMessage(params *SendMessage) error {
 		QueueUrl: aws.String(config.sqsQueueURL),
 		MessageAttributes: map[string]types.MessageAttributeValue{
 			"function":           {DataType: aws.String("String"), StringValue: aws.String(params.Bootstrap.Function)},
-			"ddb_params_table":   {DataType: aws.String("String"), StringValue: aws.String(params.Bootstrap.DDBParamsTable)},
-			"ddb_runner_table":   {DataType: aws.String("String"), StringValue: aws.String(params.Bootstrap.DDBRunnerTable)},
+			"ddb_table_prefix":   {DataType: aws.String("String"), StringValue: aws.String(params.Bootstrap.DDBTablePrefix)},
+			"delivery_stream":    {DataType: aws.String("String"), StringValue: aws.String(params.Bootstrap.DeliveryStream)},
 			"sqs_runner_url":     {DataType: aws.String("String"), StringValue: aws.String(params.Bootstrap.SQSRunnerURL)},
 			"s3_bucket":          {DataType: aws.String("String"), StringValue: aws.String(params.Bootstrap.S3Bucket)},
 			"twitter_api_key":    {DataType: aws.String("String"), StringValue: aws.String(params.Bootstrap.TwitterAPIKey)},

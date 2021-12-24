@@ -11,7 +11,7 @@ import (
 func FixTwitterTime(timeStr string) (string, error) {
 	const layout = "Mon Jan 2 15:04:05 -0700 2006"
 	if t, err := time.Parse(layout, timeStr); err != nil {
-		return "", err
+		return "<error>", err
 	} else {
 		return strconv.FormatInt(t.Unix(), 10), nil
 	}

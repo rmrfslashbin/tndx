@@ -11,20 +11,15 @@ Parameters:
     Default: tndx
     Description: Application/stack name.
 
-  ParamDDBParamTable:
+  ParamDDBTablePrefix:
     Type: String
-    Default: tndx-parameters
-    Description: DDD table to store parameters.
+    Default: tndx-
+    Description: DDD table to favorites.
 
-  ParamDDBRunnerTable:
+  ParamDeliveryStreamTweetsName:
     Type: String
-    Default: tndx-runner
-    Description: DDD runner table.
-
-  ParamDeliveryStreamTimelinesName:
-    Type: String
-    Default: tndx-timelines
-    Description: Delivery stream for timelines.
+    Default: tndx-tweets
+    Description: Delivery stream for tweets.
 
   ParamEnvironment:
     Type: String
@@ -40,10 +35,10 @@ Parameters:
     Default: tndx_us_east_2
     Description: Glue database name.
 
-  ParamGlueTableNameTndxTimelines:
+  ParamGlueTableNameTndxTweets:
     Type: String
-    Default: timelines
-    Description: Glue table name for tndx timelines.
+    Default: tweets
+    Description: Glue table name for tndx tweets.
 
   ParamRegion:
     Type: String
@@ -80,10 +75,81 @@ Globals:
     Timeout: 60
 
 Resources:
+  DDBFavoritesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub
+        - "${DDBTablePrefix}-favorites"
+        - { DDBTablePrefix: Ref ParamDDBTablePrefix }
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: UserID
+          AttributeType: N
+        - AttributeName: TweetID
+          AttributeType: N
+      KeySchema:
+        - AttributeName: UserID
+          KeyType: HASH
+        - AttributeName: TweetID
+          KeyType: RANGE
+      Tags:
+        - Key: "Environment"
+          Value: { Ref: ParamEnvironment }
+        - Key: "Application"
+          Value: { Ref: ParamAppName }
+
+  DDBFriendsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub
+        - "${DDBTablePrefix}-friends"
+        - { DDBTablePrefix: Ref ParamDDBTablePrefix }
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: UserID
+          AttributeType: N
+        - AttributeName: TweetID
+          AttributeType: N
+      KeySchema:
+        - AttributeName: UserID
+          KeyType: HASH
+        - AttributeName: TweetID
+          KeyType: RANGE
+      Tags:
+        - Key: "Environment"
+          Value: { Ref: ParamEnvironment }
+        - Key: "Application"
+          Value: { Ref: ParamAppName }
+
+  DDBFollowersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub
+        - "${DDBTablePrefix}-followers"
+        - { DDBTablePrefix: Ref ParamDDBTablePrefix }
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: UserID
+          AttributeType: N
+        - AttributeName: TweetID
+          AttributeType: N
+      KeySchema:
+        - AttributeName: UserID
+          KeyType: HASH
+        - AttributeName: TweetID
+          KeyType: RANGE
+      Tags:
+        - Key: "Environment"
+          Value: { Ref: ParamEnvironment }
+        - Key: "Application"
+          Value: { Ref: ParamAppName }
+
   DDBParametersTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Ref ParamDDBParamTable
+      TableName: !Sub
+        - "${DDBTablePrefix}-parameters"
+        - { DDBTablePrefix: Ref ParamDDBTablePrefix }
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: UserID
@@ -104,7 +170,9 @@ Resources:
   DDBRunnerTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Ref ParamDDBRunnerTable
+      TableName: !Sub
+        - "${DDBTablePrefix}-runner"
+        - { DDBTablePrefix: Ref ParamDDBTablePrefix }
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: RunnerName
@@ -122,11 +190,11 @@ Resources:
         - Key: "Application"
           Value: { Ref: ParamAppName }
 
-  DeliveryStreamTimelines:
+  DeliveryStreamTweets:
     Type: AWS::KinesisFirehose::DeliveryStream
     Properties:
       DeliveryStreamType: DirectPut
-      DeliveryStreamName: !Ref ParamDeliveryStreamTimelinesName
+      DeliveryStreamName: !Ref ParamDeliveryStreamTweetsName
       Tags:
         - Key: "Environment"
           Value: { Ref: ParamEnvironment }
@@ -138,8 +206,8 @@ Resources:
           - ""
           - - "arn:aws:s3:::"
             - !Ref S3Bucket
-        Prefix: "processed/timelines/user_id=!{partitionKeyFromQuery:user_id}/year=!{partitionKeyFromQuery:year}/month=!{partitionKeyFromQuery:month}/day=!{partitionKeyFromQuery:day}/screen_name=!{partitionKeyFromQuery:screen_name}/"
-        ErrorOutputPrefix: "errors/timelines/"
+        Prefix: "processed/tweets/user_id=!{partitionKeyFromQuery:user_id}/year=!{partitionKeyFromQuery:year}/month=!{partitionKeyFromQuery:month}/day=!{partitionKeyFromQuery:day}/screen_name=!{partitionKeyFromQuery:screen_name}/"
+        ErrorOutputPrefix: "errors/tweets/"
         BufferingHints:
           SizeInMBs: 128
           IntervalInSeconds: 300
@@ -151,7 +219,7 @@ Resources:
           LogGroupName: !Join
             - ""
             - - "KDF-"
-              - !Ref GlueTableTndxTimelines
+              - !Ref GlueTableTndxTweets
           LogStreamName: S3Delivery
         S3BackupMode: Enabled
         S3BackupConfiguration:
@@ -160,8 +228,8 @@ Resources:
             - ""
             - - "arn:aws:s3:::"
               - !Ref S3Bucket
-          Prefix: "backup/timelines/"
-          ErrorOutputPrefix: "backup/timelines/errors/"
+          Prefix: "backup/tweets/"
+          ErrorOutputPrefix: "backup/tweets/errors/"
           BufferingHints:
             SizeInMBs: 128
             IntervalInSeconds: 300
@@ -173,7 +241,7 @@ Resources:
             LogGroupName: !Join
               - ""
               - - "KDF-Backup-"
-                - !Ref GlueTableTndxTimelines
+                - !Ref GlueTableTndxTweets
             LogStreamName: S3Delivery
         DynamicPartitioningConfiguration:
           Enabled: true
@@ -193,7 +261,7 @@ Resources:
             CatalogId: !Ref AWS::AccountId
             RoleARN: !GetAtt RoleDelivery.Arn
             DatabaseName: !Ref GlueDatabaseTndx
-            TableName: !Ref GlueTableTndxTimelines
+            TableName: !Ref GlueTableTndxTweets
             Region: !Ref AWS::Region
             VersionId: LATEST
           InputFormatConfiguration:
@@ -218,8 +286,8 @@ Resources:
               "runner_name": "tndx-rmrfslashbin-01",
               "function": "favorites",
               "region": "${ParamRegion}",
-              "ddb_params_table": "${ParameterDDBParams}",
-              "ddb_runner_table": "${ParameterDDBRunner}",
+              "ddb_table_prefix": "${ParameterDDBTablePrefix}",
+              "delivery_stream": "${ParameterDeliveryStreamTweets}",
               "sqs_runner_url": "${ParameterSQSRunner}",
               "s3_bucket": "${ParameterS3Bucket}",
               "twitter_api_key": "${ParameterTwitterAPIKey}",
@@ -240,8 +308,8 @@ Resources:
               "runner_name": "tndx-rmrfslashbin-01",
               "function": "followers",
               "region": "${ParamRegion}",
-              "ddb_params_table": "${ParameterDDBParams}",
-              "ddb_runner_table": "${ParameterDDBRunner}",
+              "ddb_table_prefix": "${ParameterDDBTablePrefix}",
+              "delivery_stream": "${ParameterDeliveryStreamTweets}",
               "sqs_runner_url": "${ParameterSQSRunner}",
               "s3_bucket": "${ParameterS3Bucket}",
               "twitter_api_key": "${ParameterTwitterAPIKey}",
@@ -262,8 +330,8 @@ Resources:
               "runner_name": "tndx-rmrfslashbin-01",
               "function": "friends",
               "region": "${ParamRegion}",
-              "ddb_params_table": "${ParameterDDBParams}",
-              "ddb_runner_table": "${ParameterDDBRunner}",
+              "ddb_table_prefix": "${ParameterDDBTablePrefix}",
+              "delivery_stream": "${ParameterDeliveryStreamTweets}",
               "sqs_runner_url": "${ParameterSQSRunner}",
               "s3_bucket": "${ParameterS3Bucket}",
               "twitter_api_key": "${ParameterTwitterAPIKey}",
@@ -284,8 +352,8 @@ Resources:
               "runner_name": "tndx-rmrfslashbin-01",
               "function": "timeline",
               "region": "${ParamRegion}",
-              "ddb_params_table": "${ParameterDDBParams}",
-              "ddb_runner_table": "${ParameterDDBRunner}",
+              "ddb_table_prefix": "${ParameterDDBTablePrefix}",
+              "delivery_stream": "${ParameterDeliveryStreamTweets}",
               "sqs_runner_url": "${ParameterSQSRunner}",
               "s3_bucket": "${ParameterS3Bucket}",
               "twitter_api_key": "${ParameterTwitterAPIKey}",
@@ -306,8 +374,8 @@ Resources:
               "runner_name": "tndx-rmrfslashbin-01",
               "function": "user",
               "region": "${ParamRegion}",
-              "ddb_params_table": "${ParameterDDBParams}",
-              "ddb_runner_table": "${ParameterDDBRunner}",
+              "ddb_table_prefix": "${ParameterDDBTablePrefix}",
+              "delivery_stream": "${ParameterDeliveryStreamTweets}",
               "sqs_runner_url": "${ParameterSQSRunner}",
               "s3_bucket": "${ParameterS3Bucket}",
               "twitter_api_key": "${ParameterTwitterAPIKey}",
@@ -356,14 +424,14 @@ Resources:
         Name: !Ref ParamGlueDatabaseName
         Description: tndx database
 
-  GlueTableTndxTimelines:
+  GlueTableTndxTweets:
     Type: AWS::Glue::Table
     Properties:
       CatalogId: !Ref AWS::AccountId
       DatabaseName: !Ref GlueDatabaseTndx
       TableInput:
-        Description: tndx timelines table
-        Name: !Ref ParamGlueTableNameTndxTimelines
+        Description: tndx tweets table
+        Name: !Ref ParamGlueTableNameTndxTweets
         StorageDescriptor:
           Columns:
             - Name: coordinates
@@ -443,7 +511,7 @@ Resources:
           InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
           OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
           Location: !Sub
-            - s3://${Bucket}/processed/timelines/
+            - s3://${Bucket}/processed/tweets/
             - { Bucket: !Ref S3BucketName }
           Compressed: false
           NumberOfBuckets: -1
@@ -467,35 +535,24 @@ Resources:
             Type: string
         TableType: EXTERNAL_TABLE
 
-  ParameterDDBParams:
+  ParameterDDBTablePrefix:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: /tndx/ddb/parameters
+      Name: /tndx/ddb/table-prefix
       Type: String
-      Value: { Ref: ParamDDBParamTable }
-      Description: tndx ddb parameters table
+      Value: { Ref: ParamDDBTablePrefix }
+      Description: tndx ddb table prefix
       Tags:
         Environment: { Ref: ParamEnvironment }
         Application: { Ref: ParamAppName }
 
-  ParameterDDBRunner:
+  ParameterDeliveryStreamTweets:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: /tndx/ddb/runner
+      Name: /tndx/delivery/tweets
       Type: String
-      Value: { Ref: ParamDDBRunnerTable }
-      Description: tndx ddb parameters table
-      Tags:
-        Environment: { Ref: ParamEnvironment }
-        Application: { Ref: ParamAppName }
-
-  ParameterDeliveryStreamTimelines:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: /tndx/delivery/timelines
-      Type: String
-      Value: { Ref: ParamDeliveryStreamTimelinesName }
-      Description: tndx timeline delivery stream
+      Value: { Ref: ParamDeliveryStreamTweetsName }
+      Description: tndx tweet delivery stream
       Tags:
         Environment: { Ref: ParamEnvironment }
         Application: { Ref: ParamAppName }
@@ -612,6 +669,25 @@ Resources:
             Resource:
               - !GetAtt DDBParametersTable.Arn
               - !GetAtt DDBRunnerTable.Arn
+              - !GetAtt DDBFavoritesTable.Arn
+              - !GetAtt DDBFollowersTable.Arn
+              - !GetAtt DDBFriendsTable.Arn
+
+  PolicyTndxDeliveryAccess:
+    # firehose:PutRecord on resource: arn:aws:firehose:us-east-2:150319663043:deliverystream/tndx-tweets
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "TndxDeliveryAccess"
+      Roles:
+        - !Ref RoleLambdaExecution
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - firehose:PutRecord
+            Resource:
+              - !GetAtt DeliveryStreamTweets.Arn
 
   PolicyTndxS3Access:
     Type: "AWS::IAM::Policy"
@@ -722,7 +798,7 @@ Resources:
                       - ":"
                       - !Ref "AWS::AccountId"
                       - "log-group:/aws/kinesisfirehose/KDF-"
-                      - !Ref GlueTableTndxTimelines
+                      - !Ref GlueTableTndxTweets
                       - ":log-stream:*"
 
   RoleLambdaExecution:

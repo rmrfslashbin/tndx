@@ -21,8 +21,8 @@ var (
 type Message struct {
 	RunnerName       string `json:"runner_name"`
 	Function         string `json:"function"`
-	DDBParamsTable   string `json:"ddb_params_table"`
-	DDBRunnerTable   string `json:"ddb_runner_table"`
+	DDBTablePrefix   string `json:"ddb_table_prefix"`
+	DeliveryStream   string `json:"delivery_stream"`
 	SQSRunnerURL     string `json:"sqs_runner_url"`
 	S3Bucket         string `json:"s3_bucket"`
 	TwitterAPIKey    string `json:"twitter_api_key"`
@@ -56,11 +56,11 @@ func handler(ctx context.Context, message Message) error {
 	if message.Function == "" {
 		return errors.New("function is required")
 	}
-	if message.DDBParamsTable == "" {
-		return errors.New("ddb params table is required")
+	if message.DDBTablePrefix == "" {
+		return errors.New("ddb favorites table is required")
 	}
-	if message.DDBRunnerTable == "" {
-		return errors.New("ddb runner table is required")
+	if message.DeliveryStream == "" {
+		return errors.New("delivery stream is required")
 	}
 	if message.SQSRunnerURL == "" {
 		return errors.New("sqs runner url is required")
@@ -81,8 +81,7 @@ func handler(ctx context.Context, message Message) error {
 	)
 
 	outputs, err := params.GetParams([]string{
-		message.DDBParamsTable,
-		message.DDBRunnerTable,
+
 		message.SQSRunnerURL,
 	})
 
@@ -103,8 +102,7 @@ func handler(ctx context.Context, message Message) error {
 
 	db = database.NewDDB(
 		database.SetDDBLogger(log),
-		database.SetDDBTable(outputs.Params[message.DDBParamsTable].(string)),
-		database.SetDDBRunnerTable(outputs.Params[message.DDBRunnerTable].(string)),
+		database.SetDDBTablePrefix(outputs.Params[message.DDBTablePrefix].(string)),
 	)
 
 	q := queue.NewSQS(
@@ -123,8 +121,8 @@ func handler(ctx context.Context, message Message) error {
 
 	bootstrap := &queue.Bootstrap{
 		S3Bucket:         message.S3Bucket,
-		DDBParamsTable:   message.DDBParamsTable,
-		DDBRunnerTable:   message.DDBRunnerTable,
+		DDBTablePrefix:   message.DDBTablePrefix,
+		DeliveryStream:   message.DeliveryStream,
 		TwitterAPIKey:    message.TwitterAPIKey,
 		TwitterAPISecret: message.TwitterAPISecret,
 		SQSRunnerURL:     message.SQSRunnerURL,
