@@ -83,6 +83,8 @@ github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.3.3 h1:ru9+I
 github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.3.3/go.mod h1:zOyLMYyg60yyZpOCniAUuibWVqTU4TuLmMa/Wh4P+HA=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.5.2 h1:CKdUNKmuilw/KNmO2Q53Av8u+ZyXMC2M9aX8Z+c/gzg=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.5.2/go.mod h1:FgR1tCsn8C6+Hf+N5qkfrE4IXvUL1RgW87sunJ+5J4I=
+github.com/aws/aws-sdk-go-v2/service/rekognition v1.13.0 h1:zVGZZmP24FwuX7xRVcC4hsci1PUE5SY5+ocJoIG9Qio=
+github.com/aws/aws-sdk-go-v2/service/rekognition v1.13.0/go.mod h1:lSBjT19U5iGqHHrPpgnrkcCECFZBvvOiMb6HK7wXgpo=
 github.com/aws/aws-sdk-go-v2/service/sqs v1.13.1 h1:F2+s4Niqvlvmdzi+wNHvqa9tvgy2VfawUuLhsnLaQbQ=
 github.com/aws/aws-sdk-go-v2/service/sqs v1.13.1/go.mod h1:gOsepb5p+dWNJqP37uG78TR3cO0zYlGFLJT9zCCaaX8=
 github.com/aws/aws-sdk-go-v2/service/ssm v1.17.1 h1:E/2WewR1wegBnthK8Yz+E87E8Mm4RJC/7R6vg6oAfl0=

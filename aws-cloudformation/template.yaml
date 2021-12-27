@@ -402,6 +402,32 @@ Resources:
             Queue: !GetAtt SQSTndxRunner.Arn
             Enabled: true
 
+  FuntionTndxRekognition:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Tndx Rekognition
+      FunctionName: !Sub ${ParamAppName}-rekognition-${ParamEnvironment}
+      CodeUri: ../bin/tndx-rekognition
+      Handler: bootstrap
+      Runtime: provided.al2
+      Architectures: [arm64]
+      Role: !GetAtt RoleLambdaExecution.Arn
+      Tags:
+        Environment: { Ref: ParamEnvironment }
+        Application: { Ref: ParamAppName }
+      Events:
+        EventS3TndxMediaToFunctionTndxRekognition:
+          Type: S3
+          Properties:
+            Bucket:
+              Ref: S3Bucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: rtest/
+
   FunctionTndxRunner:
     Type: AWS::Serverless::Function
     Properties:
@@ -674,7 +700,6 @@ Resources:
               - !GetAtt DDBFriendsTable.Arn
 
   PolicyTndxDeliveryAccess:
-    # firehose:PutRecord on resource: arn:aws:firehose:us-east-2:150319663043:deliverystream/tndx-tweets
     Type: "AWS::IAM::Policy"
     Properties:
       PolicyName: "TndxDeliveryAccess"
@@ -707,6 +732,8 @@ Resources:
           - Effect: Allow
             Action:
               - s3:PutObject
+              - s3:GetObject
+              - s3:GetObjectMetadata
             Resource: !Sub
               - arn:aws:s3:::${Bucket}/*
               - { Bucket: !Ref S3BucketName }
@@ -815,6 +842,7 @@ Resources:
               - "sts:AssumeRole"
       ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        - "arn:aws:iam::aws:policy/AmazonRekognitionReadOnlyAccess"
       Tags:
         - Key: "Environment"
           Value: { Ref: ParamEnvironment }
