@@ -159,6 +159,18 @@ func SetDDBLogger(logger *logrus.Logger) func(*DDBDriver) {
 	}
 }
 
+func (config *DDBDriver) DeleteMedia(mediaItem *MediaItem) error {
+	input := &dynamodb.DeleteItemInput{
+		TableName: aws.String(config.mediaTable),
+		Key: map[string]types.AttributeValue{
+			"Bucket": &types.AttributeValueMemberS{Value: mediaItem.Bucket},
+			"S3Key":  &types.AttributeValueMemberS{Value: mediaItem.S3Key},
+		},
+	}
+	_, err := config.db.DeleteItem(context.TODO(), input)
+	return err
+}
+
 func (config *DDBDriver) DeleteRunnerUser(params *RunnerItem) error {
 	input := &dynamodb.DeleteItemInput{
 		TableName: aws.String(config.runnerTable),

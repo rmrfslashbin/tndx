@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -40,10 +41,6 @@ func main() {
 }
 
 func handler(ctx context.Context, event events.S3Event) error {
-	log.WithFields(logrus.Fields{
-		"event": event,
-	}).Info("received message")
-
 	params := ssmparams.NewSSMParams(
 		ssmparams.SetRegion(aws_region),
 		ssmparams.SetLogger(log),
@@ -77,34 +74,52 @@ func handler(ctx context.Context, event events.S3Event) error {
 	)
 
 	for _, record := range event.Records {
+		if strings.HasPrefix(record.EventName, "ObjectCreated") {
+			output, err := rk.Process(&types.S3Object{
+				Bucket: aws.String(record.S3.Bucket.Name),
+				Name:   aws.String(record.S3.Object.Key),
+			})
+			if err != nil {
+				log.WithFields(logrus.Fields{
+					"error": err,
+				}).Error("error processing media")
+				return err
+			}
 
-		output, err := rk.Process(&types.S3Object{
-			Bucket: aws.String(record.S3.Bucket.Name),
-			Name:   aws.String(record.S3.Object.Key),
-		})
-		if err != nil {
+			if err := ddb.PutMedia(&database.MediaItem{
+				Bucket:     record.S3.Bucket.Name,
+				S3Key:      record.S3.Object.Key,
+				Faces:      output.Faces,
+				Labels:     output.Labels,
+				Moderation: output.Moderation,
+				Text:       output.Text,
+			}); err != nil {
+				log.WithFields(logrus.Fields{
+					"error": err,
+				}).Error("error saving media item")
+				return err
+			}
 			log.WithFields(logrus.Fields{
-				"error": err,
-			}).Error("error processing image")
-			return err
-		}
-
-		log.WithFields(logrus.Fields{
-			"output": output,
-		}).Info("image processed")
-
-		if err := ddb.PutMedia(&database.MediaItem{
-			Bucket:     record.S3.Bucket.Name,
-			S3Key:      record.S3.Object.Key,
-			Faces:      output.Faces,
-			Labels:     output.Labels,
-			Moderation: output.Moderation,
-			Text:       output.Text,
-		}); err != nil {
+				"output": output,
+				"record": record,
+			}).Info("media processed and added to ddb")
+		} else if strings.HasPrefix(record.EventName, "ObjectRemoved") {
+			if err := ddb.DeleteMedia(&database.MediaItem{
+				Bucket: record.S3.Bucket.Name,
+				S3Key:  record.S3.Object.Key,
+			}); err != nil {
+				log.WithFields(logrus.Fields{
+					"error": err,
+				}).Error("error deleting media item")
+				return err
+			}
 			log.WithFields(logrus.Fields{
-				"error": err,
-			}).Error("error saving media item")
-			return err
+				"record": record,
+			}).Info("image removed from ddb")
+		} else {
+			log.WithFields(logrus.Fields{
+				"record": record,
+			}).Warn("unknown event")
 		}
 	}
 	return nil

@@ -447,12 +447,14 @@ Resources:
           Properties:
             Bucket:
               Ref: S3Bucket
-            Events: s3:ObjectCreated:*
+            Events:
+              - s3:ObjectCreated:*
+              - s3:ObjectRemoved:*
             Filter:
               S3Key:
                 Rules:
                   - Name: prefix
-                    Value: rtest/
+                    Value: media/
 
   FunctionTndxRunner:
     Type: AWS::Serverless::Function
@@ -718,6 +720,7 @@ Resources:
               - dynamodb:GetItem
               - dynamodb:PutItem
               - dynamodb:Query
+              - dynamodb:DeleteItem
             Resource:
               - !GetAtt DDBParametersTable.Arn
               - !GetAtt DDBRunnerTable.Arn
