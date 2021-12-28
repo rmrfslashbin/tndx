@@ -410,7 +410,7 @@ Resources:
     Properties:
       Description: Tndx Processor
       FunctionName: !Sub ${ParamAppName}-processor-${ParamEnvironment}
-      CodeUri: ../bin/tndx-processor
+      CodeUri: ../bin/tndx-lambda-processor
       Handler: bootstrap
       Runtime: provided.al2
       Architectures: [arm64]
@@ -430,7 +430,7 @@ Resources:
     Properties:
       Description: Tndx Rekognition
       FunctionName: !Sub ${ParamAppName}-rekognition-${ParamEnvironment}
-      CodeUri: ../bin/tndx-rekognition
+      CodeUri: ../bin/tndx-lambda-rekognition
       Handler: bootstrap
       Runtime: provided.al2
       Architectures: [arm64]
@@ -461,7 +461,7 @@ Resources:
     Properties:
       Description: Runner function
       FunctionName: !Sub ${ParamAppName}-runner-${ParamEnvironment}
-      CodeUri: ../bin/tndx-runner
+      CodeUri: ../bin/tndx-lambda-runner
       Handler: bootstrap
       Runtime: provided.al2
       Architectures: [arm64]
@@ -469,6 +469,24 @@ Resources:
       Tags:
         Environment: { Ref: ParamEnvironment }
         Application: { Ref: ParamAppName }
+
+  GlueCrawlerTweets:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Configuration: '{"Version":1.0,"Grouping":{"TableGroupingPolicy":"CombineCompatibleSchemas"}}'
+      Description: Crawler for tweets
+      Name: tndx-tweets
+      RecrawlPolicy:
+        RecrawlBehavior: CRAWL_EVERYTHING
+      Role: !GetAtt RoleGlueCrawler.Arn
+      SchemaChangePolicy:
+        DeleteBehavior: LOG
+        UpdateBehavior: UPDATE_IN_DATABASE
+      Targets:
+        CatalogTargets:
+          - DatabaseName: { Ref: GlueDatabaseTndx }
+            Tables:
+              - { Ref: GlueTableTndxTweets }
 
   GlueDatabaseTndx:
     Type: AWS::Glue::Database
@@ -750,6 +768,7 @@ Resources:
       PolicyName: "TndxS3Access"
       Roles:
         - !Ref RoleLambdaExecution
+        - !Ref RoleGlueCrawler
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -857,6 +876,26 @@ Resources:
                       - "log-group:/aws/kinesisfirehose/KDF-"
                       - !Ref GlueTableTndxTweets
                       - ":log-stream:*"
+
+  RoleGlueCrawler:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - glue.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+      Tags:
+        - Key: "Environment"
+          Value: { Ref: ParamEnvironment }
+        - Key: "Application"
+          Value: { Ref: ParamAppName }
 
   RoleLambdaExecution:
     Type: AWS::IAM::Role

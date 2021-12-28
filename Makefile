@@ -1,9 +1,10 @@
 #.DEFAULT_GOAL := default
+.PHONY: build
 
 PROJECT := tndx
-SYSTEM := $(shell uname -s | tr '[:upper:]' '[:lower:]')
-MACHINE := $(shell uname -m | tr '[:upper:]' '[:lower:]')
-deploy_bucket = is-us-east-2-deployment
+
+deploy_bucket_us_east_2 = is-us-east-2-deployment
+deploy_bucket_us_east_1 = is-us-east-1-deployment
 stack_name = $(PROJECT)
 
 SHA_CMD := $(shell { command -v sha256sum || command -v shasum; } 2>/dev/null)
@@ -11,14 +12,20 @@ SHA_CMD := $(shell { command -v sha256sum || command -v shasum; } 2>/dev/null)
 #default: run
 
 build:
-	@echo "Building $(PROJECT)"
-	@if [ ! -d "./bin" ]; then mkdir bin; fi
-	@go build -o bin/tndx-$(SYSTEM)-$(MACHINE) cmd/tndx/main.go
-	@$(SHA_CMD) bin/tndx-$(SYSTEM)-$(MACHINE) | sed 's/bin\///' > bin/tndx-$(SYSTEM)-$(MACHINE).sha256
-
-install:
-	@echo "Installing $(PROJECT)"
-	@go install
+	@printf "Building $(PROJECT)\n"
+	@printf "  building tndx-runner:\n"
+	@printf "    linux  :: arm64"
+	@GOOS=linux GOARCH=arm64 go build -o bin/tndx-runner-linux-arm64 cmd/tndx-runner/main.go
+	@printf " dome.\n"
+	@printf "    linux  :: amd64"
+	@GOOS=linux GOARCH=amd64 go build -o bin/tndx-runner-linux-amd64 cmd/tndx-runner/main.go
+	@printf " dome.\n"
+	@printf "    darwin :: amd64"
+	@GOOS=darwin GOARCH=amd64 go build -o bin/tndx-runner-darwin-amd64 cmd/tndx-runner/main.go
+	@printf " dome.\n"
+	@printf "    darwin :: arm64"
+	@GOOS=darwin GOARCH=arm64 go build -o bin/tndx-runner-darwin-arm64 cmd/tndx-runner/main.go
+	@printf " dome.\n"
 
 tidy:
 	@echo "Making mod tidy"
@@ -29,22 +36,14 @@ update:
 	@go get -u ./...
 	@go mod tidy
 
-docker-build:
-	@echo "Building $(PROJECT) docker image"
-	@docker build -t github.com/rmrfslashbin/$(PROJECT):latest .
-
-cfdeploy: lambda-build
-	aws --profile us-east-2 cloudformation package --template-file aws-cloudformation/template.yaml --s3-bucket $(deploy_bucket) --output-template-file build/out.yaml
-	aws --profile us-east-2 cloudformation deploy --template-file build/out.yaml --s3-bucket $(deploy_bucket) --stack-name $(stack_name) --capabilities CAPABILITY_NAMED_IAM
+deploy-us-east-2: lambda-build
+	aws --profile us-east-2 cloudformation package --template-file aws-cloudformation/template.yaml --s3-bucket $(deploy_bucket_us_east_2) --output-template-file build/out.yaml
+	aws --profile us-east-2 cloudformation deploy --template-file build/out.yaml --s3-bucket $(deploy_bucket_us_east_2) --stack-name $(stack_name) --capabilities CAPABILITY_NAMED_IAM
 
 lambda-build:
-	GOOS=linux GOARCH=arm64 go build -o bin/tndx-processor/bootstrap cmd/tndx-processor/main.go
-	GOOS=linux GOARCH=arm64 go build -o bin/tndx-runner/bootstrap cmd/tndx-runner/main.go
-	GOOS=linux GOARCH=arm64 go build -o bin/tndx-rekognition/bootstrap cmd/tndx-rekognition/main.go
+	GOOS=linux GOARCH=arm64 go build -o bin/tndx-lambda-processor/bootstrap cmd/tndx-lambda-processor/main.go
+	GOOS=linux GOARCH=arm64 go build -o bin/tndx-lambda-runner/bootstrap cmd/tndx-lambda-runner/main.go
+	GOOS=linux GOARCH=arm64 go build -o bin/tndx-lambda-rekognition/bootstrap cmd/tndx-lambda-rekognition/main.go
 
 cfdescribe:
 	aws cloudformation describe-stack-events --stack-name $(stack_name)
-
-cfdeploy-glue:
-	aws --profile us-east-2 cloudformation package --template-file aws-cloudformation/glue.yaml --s3-bucket $(deploy_bucket) --output-template-file build/glue.yaml
-	aws --profile us-east-2 cloudformation deploy --template-file build/glue.yaml --stack-name glue-test --capabilities CAPABILITY_NAMED_IAM
