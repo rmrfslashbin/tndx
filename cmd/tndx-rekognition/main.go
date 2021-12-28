@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/rekognition/types"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/rmrfslashbin/tndx/pkg/database"
 	"github.com/rmrfslashbin/tndx/pkg/rekognition"
 	"github.com/sirupsen/logrus"
 )
@@ -49,6 +50,8 @@ func handler(ctx context.Context, event events.S3Event) error {
 			rekognition.SetLogger(log),
 		)
 
+		ddb := database.NewDDB(database.SetDDBLogger(log), database.SetDDBTablePrefix("tndx-"))
+
 		output, err := rk.Process(&types.S3Object{
 			Bucket: aws.String(record.S3.Bucket.Name),
 			Name:   aws.String(record.S3.Object.Key),
@@ -63,6 +66,20 @@ func handler(ctx context.Context, event events.S3Event) error {
 		log.WithFields(logrus.Fields{
 			"output": output,
 		}).Info("image processed")
+
+		if err := ddb.PutMedia(&database.MediaItem{
+			Bucket:     record.S3.Bucket.Name,
+			S3Key:      record.S3.Object.Key,
+			Faces:      output.Faces,
+			Labels:     output.Labels,
+			Moderation: output.Moderation,
+			Text:       output.Text,
+		}); err != nil {
+			log.WithFields(logrus.Fields{
+				"error": err,
+			}).Error("error saving media item")
+			return err
+		}
 	}
 	return nil
 }

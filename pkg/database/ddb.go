@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"os"
 	"strconv"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	rekognitionTypes "github.com/aws/aws-sdk-go-v2/service/rekognition/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -26,6 +28,7 @@ type DDBDriver struct {
 	friendsTable   string
 	followersTable string
 	runnerTable    string
+	mediaTable     string
 	paramsTable    string
 	db             *dynamodb.Client
 }
@@ -84,6 +87,15 @@ type RunnerItem struct {
 	LastUpdate int64  `json:"LastUpdate"`
 }
 
+type MediaItem struct {
+	Bucket     string `json:"Bucket"`
+	S3Key      string `json:"S3Key"`
+	Faces      []rekognitionTypes.FaceDetail
+	Labels     []rekognitionTypes.Label
+	Moderation []rekognitionTypes.ModerationLabel
+	Text       []rekognitionTypes.TextDetection
+}
+
 const (
 	F_favorites Bits = 1 << iota
 	F_followers
@@ -104,6 +116,10 @@ func NewDDB(opts ...func(*DDBDriver)) *DDBDriver {
 	// apply the list of options to Config
 	for _, opt := range opts {
 		opt(cfg)
+	}
+
+	if cfg.region == "" {
+		cfg.region = os.Getenv("AWS_REGION")
 	}
 
 	c, err := config.LoadDefaultConfig(context.TODO(), func(o *config.LoadOptions) error {
@@ -132,6 +148,7 @@ func SetDDBTablePrefix(tablePrefix string) func(*DDBDriver) {
 		config.friendsTable = tablePrefix + "friends"
 		config.followersTable = tablePrefix + "followers"
 		config.runnerTable = tablePrefix + "runner"
+		config.mediaTable = tablePrefix + "media"
 		config.paramsTable = tablePrefix + "parameters"
 	}
 }
@@ -410,6 +427,20 @@ func (config *DDBDriver) PutFriendsConfig(query *CursoredTweetConfigQuery) error
 	if _, err := config.db.PutItem(context.TODO(), &dynamodb.PutItemInput{
 		Item:      kvp,
 		TableName: aws.String(config.paramsTable),
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+func (config *DDBDriver) PutMedia(mediaItem *MediaItem) error {
+	kvp, err := attributevalue.MarshalMap(mediaItem)
+	if err != nil {
+		return err
+	}
+
+	if _, err := config.db.PutItem(context.TODO(), &dynamodb.PutItemInput{
+		Item:      kvp,
+		TableName: aws.String(config.mediaTable),
 	}); err != nil {
 		return err
 	}

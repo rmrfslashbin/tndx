@@ -62,14 +62,33 @@ func SetLogger(log *logrus.Logger) Option {
 }
 
 func (config *Config) Process(s3Obj *types.S3Object) (*Detection, error) {
+	type Faces struct {
+		faces []types.FaceDetail
+		err   error
+	}
+	type Labels struct {
+		labels []types.Label
+		err    error
+	}
+
+	type Moderation struct {
+		moderation []types.ModerationLabel
+		err        error
+	}
+
+	type Text struct {
+		text []types.TextDetection
+		err  error
+	}
+
 	config.log.WithFields(logrus.Fields{
 		"s3Obj": s3Obj,
 	}).Info("processing image")
-	errors := make(chan error)
-	facesChannel := make(chan []types.FaceDetail)
-	labelsChannel := make(chan []types.Label)
-	moderationChannel := make(chan []types.ModerationLabel)
-	textChannel := make(chan []types.TextDetection)
+
+	facesChannel := make(chan Faces)
+	labelsChannel := make(chan Labels)
+	moderationChannel := make(chan Moderation)
+	textChannel := make(chan Text)
 
 	go func() {
 		if faces, err := config.svc.DetectFaces(context.TODO(), &rekognition.DetectFacesInput{
@@ -77,9 +96,9 @@ func (config *Config) Process(s3Obj *types.S3Object) (*Detection, error) {
 				S3Object: s3Obj,
 			},
 		}); err != nil {
-			errors <- err
+			facesChannel <- Faces{err: err}
 		} else {
-			facesChannel <- faces.FaceDetails
+			facesChannel <- Faces{faces: faces.FaceDetails}
 		}
 	}()
 
@@ -89,9 +108,9 @@ func (config *Config) Process(s3Obj *types.S3Object) (*Detection, error) {
 				S3Object: s3Obj,
 			},
 		}); err != nil {
-			errors <- err
+			labelsChannel <- Labels{err: err}
 		} else {
-			labelsChannel <- labels.Labels
+			labelsChannel <- Labels{labels: labels.Labels}
 		}
 	}()
 
@@ -101,9 +120,9 @@ func (config *Config) Process(s3Obj *types.S3Object) (*Detection, error) {
 				S3Object: s3Obj,
 			},
 		}); err != nil {
-			errors <- err
+			moderationChannel <- Moderation{err: err}
 		} else {
-			moderationChannel <- moderation.ModerationLabels
+			moderationChannel <- Moderation{moderation: moderation.ModerationLabels}
 		}
 	}()
 
@@ -113,26 +132,42 @@ func (config *Config) Process(s3Obj *types.S3Object) (*Detection, error) {
 				S3Object: s3Obj,
 			},
 		}); err != nil {
-			errors <- err
+			textChannel <- Text{err: err}
 		} else {
-			textChannel <- text.TextDetections
+			textChannel <- Text{text: text.TextDetections}
 		}
 	}()
 
-	detection := &Detection{}
-
-	select {
-	case err := <-errors:
-		return nil, err
-	case faces := <-facesChannel:
-		detection.Faces = faces
-	case labels := <-labelsChannel:
-		detection.Labels = labels
-	case moderation := <-moderationChannel:
-		detection.Moderation = moderation
-	case text := <-textChannel:
-		detection.Text = text
+	faces, labels, moderation, text := <-facesChannel, <-labelsChannel, <-moderationChannel, <-textChannel
+	if faces.err != nil {
+		config.log.WithFields(logrus.Fields{
+			"error": faces.err,
+		}).Error("error processing faces")
+		return nil, faces.err
+	}
+	if labels.err != nil {
+		config.log.WithFields(logrus.Fields{
+			"error": labels.err,
+		}).Error("error processing labels")
+		return nil, labels.err
+	}
+	if moderation.err != nil {
+		config.log.WithFields(logrus.Fields{
+			"error": moderation.err,
+		}).Error("error processing moderation")
+		return nil, moderation.err
+	}
+	if text.err != nil {
+		config.log.WithFields(logrus.Fields{
+			"error": text.err,
+		}).Error("error processing text")
+		return nil, text.err
 	}
 
-	return detection, nil
+	return &Detection{
+		Faces:      faces.faces,
+		Labels:     labels.labels,
+		Moderation: moderation.moderation,
+		Text:       text.text,
+	}, nil
 }

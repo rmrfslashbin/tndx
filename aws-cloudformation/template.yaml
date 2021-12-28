@@ -144,6 +144,29 @@ Resources:
         - Key: "Application"
           Value: { Ref: ParamAppName }
 
+  DDBMediaTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub
+        - ${DDBTablePrefix}media
+        - { DDBTablePrefix: !Ref ParamDDBTablePrefix }
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: Bucket
+          AttributeType: S
+        - AttributeName: S3Key
+          AttributeType: S
+      KeySchema:
+        - AttributeName: Bucket
+          KeyType: HASH
+        - AttributeName: S3Key
+          KeyType: RANGE
+      Tags:
+        - Key: "Environment"
+          Value: { Ref: ParamEnvironment }
+        - Key: "Application"
+          Value: { Ref: ParamAppName }
+
   DDBParametersTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -698,6 +721,7 @@ Resources:
               - !GetAtt DDBFavoritesTable.Arn
               - !GetAtt DDBFollowersTable.Arn
               - !GetAtt DDBFriendsTable.Arn
+              - !GetAtt DDBMediaTable.Arn
 
   PolicyTndxDeliveryAccess:
     Type: "AWS::IAM::Policy"
