@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/rmrfslashbin/tndx/pkg/database"
 	"github.com/rmrfslashbin/tndx/pkg/rekognition"
+	"github.com/rmrfslashbin/tndx/pkg/ssmparams"
 	"github.com/sirupsen/logrus"
 )
 
@@ -43,19 +44,43 @@ func handler(ctx context.Context, event events.S3Event) error {
 		"event": event,
 	}).Info("received message")
 
+	params := ssmparams.NewSSMParams(
+		ssmparams.SetRegion(aws_region),
+		ssmparams.SetLogger(log),
+	)
+
+	outputs, err := params.GetParams([]string{
+		os.Getenv("DDB_TABLE_PREFIX"),
+	})
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			"error": err,
+		}).Error("failed to get parameters for DDB_TABLE_PREFIX")
+		return err
+	}
+
+	if len(outputs.InvalidParameters) > 0 {
+		log.WithFields(logrus.Fields{
+			"invalid_parameters": outputs.InvalidParameters,
+		}).Error("invalid parameters for DDB_TABLE_PREFIX")
+		return err
+	}
+
+	rk := rekognition.NewImageProcessor(
+		rekognition.SetRegion(aws_region),
+		rekognition.SetLogger(log),
+	)
+
+	ddb := database.NewDDB(
+		database.SetDDBLogger(log),
+		database.SetDDBTablePrefix(outputs.Params[os.Getenv("DDB_TABLE_PREFIX")].(string)),
+	)
+
 	for _, record := range event.Records {
-
-		rk := rekognition.NewImageProcessor(
-			rekognition.SetRegion(aws_region),
-			rekognition.SetLogger(log),
-		)
-
-		ddb := database.NewDDB(database.SetDDBLogger(log), database.SetDDBTablePrefix("tndx-"))
 
 		output, err := rk.Process(&types.S3Object{
 			Bucket: aws.String(record.S3.Bucket.Name),
 			Name:   aws.String(record.S3.Object.Key),
-			//Version: aws.String(record.S3.Object.VersionID),
 		})
 		if err != nil {
 			log.WithFields(logrus.Fields{
@@ -63,6 +88,7 @@ func handler(ctx context.Context, event events.S3Event) error {
 			}).Error("error processing image")
 			return err
 		}
+
 		log.WithFields(logrus.Fields{
 			"output": output,
 		}).Info("image processed")

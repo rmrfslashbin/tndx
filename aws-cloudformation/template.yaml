@@ -438,6 +438,9 @@ Resources:
       Tags:
         Environment: { Ref: ParamEnvironment }
         Application: { Ref: ParamAppName }
+      Environment:
+        Variables:
+          DDB_TABLE_PREFIX: { Ref: ParameterDDBTablePrefix }
       Events:
         EventS3TndxMediaToFunctionTndxRekognition:
           Type: S3
