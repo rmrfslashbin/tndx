@@ -1,9 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: >
-  tndx-us-east-2-test-stack
-
-  The Twitter ndx
+Description: "tndx: the twitter ndx"
 
 Parameters:
   ParamAppName:
@@ -14,31 +11,16 @@ Parameters:
   ParamDDBTablePrefix:
     Type: String
     Default: tndx-
-    Description: DDD table to favorites.
-
-  ParamDeliveryStreamTweetsName:
-    Type: String
-    Default: tndx-tweets
-    Description: Delivery stream for tweets.
+    Description: DDB table to favorites.
 
   ParamEnvironment:
     Type: String
-    Default: staging
+    Default: prod
     AllowedValues:
       - dev
       - staging
       - prod
     Description: Environment for deployment.
-
-  ParamGlueDatabaseName:
-    Type: String
-    Default: tndx_us_east_2
-    Description: Glue database name.
-
-  ParamGlueTableNameTndxTweets:
-    Type: String
-    Default: tweets
-    Description: Glue table name for tndx tweets.
 
   ParamRegion:
     Type: String
@@ -50,14 +32,14 @@ Parameters:
       - us-west-2
     Description: The AWS Region for deployment.
 
+  ParamRunnerName:
+    Type: String
+    Default: tndx-rmrfslashbin-01
+    Description: Name of tndx runner.
+
   S3BucketName:
     Type: String
     Default: is-tndx-us-east-2
-    Description: Priamry S3 bucket.
-
-  SQSName:
-    Type: String
-    Default: tndx-runner
     Description: Priamry S3 bucket.
 
   TwitterAPIKey:
@@ -217,7 +199,6 @@ Resources:
     Type: AWS::KinesisFirehose::DeliveryStream
     Properties:
       DeliveryStreamType: DirectPut
-      DeliveryStreamName: !Ref ParamDeliveryStreamTweetsName
       Tags:
         - Key: "Environment"
           Value: { Ref: ParamEnvironment }
@@ -306,7 +287,7 @@ Resources:
           Id: TargetFunctionTndxRunnerFavorites
           Input: !Sub |
             {
-              "runner_name": "tndx-rmrfslashbin-01",
+              "runner_name": "${ParamRunnerName}",
               "function": "favorites",
               "region": "${ParamRegion}",
               "ddb_table_prefix": "${ParameterDDBTablePrefix}",
@@ -328,7 +309,7 @@ Resources:
           Id: TargetFunctionTndxRunnerFollowers
           Input: !Sub |
             {
-              "runner_name": "tndx-rmrfslashbin-01",
+              "runner_name": "${ParamRunnerName}",
               "function": "followers",
               "region": "${ParamRegion}",
               "ddb_table_prefix": "${ParameterDDBTablePrefix}",
@@ -350,7 +331,7 @@ Resources:
           Id: TargetFunctionTndxRunnerFriends
           Input: !Sub |
             {
-              "runner_name": "tndx-rmrfslashbin-01",
+              "runner_name": "${ParamRunnerName}",
               "function": "friends",
               "region": "${ParamRegion}",
               "ddb_table_prefix": "${ParameterDDBTablePrefix}",
@@ -372,7 +353,7 @@ Resources:
           Id: TargetFunctionTndxRunnerTimeline
           Input: !Sub |
             {
-              "runner_name": "tndx-rmrfslashbin-01",
+              "runner_name": "${ParamRunnerName}",
               "function": "timeline",
               "region": "${ParamRegion}",
               "ddb_table_prefix": "${ParameterDDBTablePrefix}",
@@ -394,7 +375,7 @@ Resources:
           Id: TargetFunctionTndxRunnerUser
           Input: !Sub |
             {
-              "runner_name": "tndx-rmrfslashbin-01",
+              "runner_name": "${ParamRunnerName}",
               "function": "user",
               "region": "${ParamRegion}",
               "ddb_table_prefix": "${ParameterDDBTablePrefix}",
@@ -493,7 +474,6 @@ Resources:
     Properties:
       CatalogId: !Ref AWS::AccountId
       DatabaseInput:
-        Name: !Ref ParamGlueDatabaseName
         Description: tndx database
 
   GlueTableTndxTweets:
@@ -503,7 +483,6 @@ Resources:
       DatabaseName: !Ref GlueDatabaseTndx
       TableInput:
         Description: tndx tweets table
-        Name: !Ref ParamGlueTableNameTndxTweets
         StorageDescriptor:
           Columns:
             - Name: coordinates
@@ -623,7 +602,7 @@ Resources:
     Properties:
       Name: /tndx/delivery/tweets
       Type: String
-      Value: { Ref: ParamDeliveryStreamTweetsName }
+      Value: { Ref: DeliveryStreamTweets }
       Description: tndx tweet delivery stream
       Tags:
         Environment: { Ref: ParamEnvironment }
@@ -759,6 +738,7 @@ Resources:
           - Effect: Allow
             Action:
               - firehose:PutRecord
+              - firehose:PutRecordBatch
             Resource:
               - !GetAtt DeliveryStreamTweets.Arn
 
@@ -862,20 +842,8 @@ Resources:
                 Resource: "*"
               - Effect: Allow
                 Action:
-                  - "logs:CreateLogStream"
-                  - "logs:PutRetentionPolicy"
-                  - "logs:CreateLogGroup"
-                  - "logs:PutLogEvents"
-                Resource:
-                  - !Join
-                    - ""
-                    - - "arn:aws:logs:"
-                      - !Ref "AWS::Region"
-                      - ":"
-                      - !Ref "AWS::AccountId"
-                      - "log-group:/aws/kinesisfirehose/KDF-"
-                      - !Ref GlueTableTndxTweets
-                      - ":log-stream:*"
+                  - "logs:*"
+                Resource: "*"
 
   RoleGlueCrawler:
     Type: AWS::IAM::Role
@@ -942,7 +910,6 @@ Resources:
   SQSTndxRunner:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: { Ref: SQSName }
       KmsMasterKeyId: alias/aws/sqs
       VisibilityTimeout: 60
       Tags:
@@ -950,3 +917,29 @@ Resources:
           Value: { Ref: ParamEnvironment }
         - Key: "Application"
           Value: { Ref: ParamAppName }
+
+Outputs:
+  RunnerName:
+    Description: Runner Name (use for runner/database setup)
+    Value: !Ref ParamRunnerName
+  TwitterAPIKey:
+    Description: Twitter API key must be set in SSM Parameter Store
+    Value: !Ref ParameterTwitterAPIKey
+  TwitterAPISecret:
+    Description: Twitter API secret must be set in SSM Parameter Store
+    Value: !Ref ParameterTwitterAPISecret
+  EventTndxRunnerFavoritesName:
+    Description: Tndx Runner Favorites event (currently disabled)
+    Value: !Ref EventTndxRunnerFavorites
+  EventTndxRunnerFollowersName:
+    Description: Event Tndx Runner Followers event (currently disabled)
+    Value: !Ref EventTndxRunnerFollowers
+  EventTndxRunnerFriendsName:
+    Description: Event Tndx Runner Friends event (currently disabled)
+    Value: !Ref EventTndxRunnerFriends
+  EventTndxRunnerTimelineName:
+    Description: Event Tndx Runner Timeline event (currently disabled)
+    Value: !Ref EventTndxRunnerTimeline
+  EventTndxRunnerUserName:
+    Description: Event Tndx Runner User event (currently disabled)
+    Value: !Ref EventTndxRunnerUser
