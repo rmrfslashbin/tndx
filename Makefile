@@ -52,7 +52,7 @@ update:
 
 deploy-us-east-2: lambda-build
 	aws --profile us-east-2 cloudformation package --template-file aws-cloudformation/template.yaml --s3-bucket $(deploy_bucket_us_east_2) --output-template-file build/out.yaml
-	aws --profile us-east-2 cloudformation deploy --template-file build/out.yaml --s3-bucket $(deploy_bucket_us_east_2) --stack-name $(stack_name) --capabilities CAPABILITY_NAMED_IAM
+	aws --profile us-east-2 cloudformation deploy --template-file build/out.yaml --s3-bucket $(deploy_bucket_us_east_2) --stack-name $(stack_name)-rmrfslashbin --capabilities CAPABILITY_NAMED_IAM
 
 lambda-build:
 	GOOS=linux GOARCH=arm64 go build -o bin/tndx-lambda-processor/bootstrap cmd/tndx-lambda-processor/main.go
