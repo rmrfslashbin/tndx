@@ -381,6 +381,28 @@ Resources:
               "twitter_api_secret": "${ParameterTwitterAPISecret}"
             }
 
+  FunctionTndxConfigWriter:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Tndx config maker
+      FunctionName: !Sub ${ParamAppName}-${ParamInstanceName}-configMaker-${ParamEnvironment}
+      CodeUri: ../bin/tndx-lambda-config-maker
+      Handler: bootstrap
+      Runtime: provided.al2
+      Architectures: [arm64]
+      Role: !GetAtt RoleLambdaExecution.Arn
+      Environment:
+        Variables:
+          REGION: { Ref: AWS::Region }
+          PROFILE: "you-profile-name"
+          DDB_TABLE_PREFIX: { Ref: ParameterDDBTablePrefix }
+          TWITTER_API_KEY: { Ref: ParameterTwitterAPIKey }
+          TWITTER_API_SECRET: { Ref: ParameterTwitterAPISecret }
+      Tags:
+        Environment: { Ref: ParamEnvironment }
+        Application: { Ref: ParamAppName }
+        Instance: { Ref: ParamInstanceName }
+
   FunctionTndxProcessor:
     Type: AWS::Serverless::Function
     Properties:

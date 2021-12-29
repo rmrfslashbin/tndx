@@ -53,8 +53,8 @@ func main() {
 
 func handler(ctx context.Context, s3Request S3Request) error {
 	cfg := Config{
-		AwsRegion:        os.Getenv("AWS_REGION"),
-		AwsProfile:       os.Getenv("AWS_PROFILE"),
+		AwsRegion:        os.Getenv("REGION"),
+		AwsProfile:       os.Getenv("PROFILE"),
 		DDBTablePrefix:   os.Getenv("DDB_TABLE_PREFIX"),
 		TwitterAPIKey:    os.Getenv("TWITTER_API_KEY"),
 		TwitterAPISecret: os.Getenv("TWITTER_API_SECRET"),
