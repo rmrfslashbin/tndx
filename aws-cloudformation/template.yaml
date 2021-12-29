@@ -494,7 +494,7 @@ Resources:
       CatalogId: !Ref AWS::AccountId
       DatabaseInput:
         Description: !Sub "tndx ${ParamInstanceName} database"
-        Name: !Sub "tndx-${ParamInstanceName}"
+        Name: !Sub "tndx_${ParamInstanceName}"
 
   GlueTableTndxTweets:
     Type: AWS::Glue::Table

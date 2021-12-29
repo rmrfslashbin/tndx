@@ -147,7 +147,7 @@ func SetDDBTablePrefix(tablePrefix string) func(*DDBDriver) {
 		config.favoritesTable = tablePrefix + "favorites"
 		config.friendsTable = tablePrefix + "friends"
 		config.followersTable = tablePrefix + "followers"
-		config.runnerTable = tablePrefix + "runner"
+		config.runnerTable = tablePrefix + "runners"
 		config.mediaTable = tablePrefix + "media"
 		config.paramsTable = tablePrefix + "parameters"
 	}
