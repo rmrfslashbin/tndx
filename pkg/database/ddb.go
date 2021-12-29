@@ -147,7 +147,7 @@ func SetDDBTablePrefix(tablePrefix string) func(*DDBDriver) {
 		config.favoritesTable = tablePrefix + "favorites"
 		config.friendsTable = tablePrefix + "friends"
 		config.followersTable = tablePrefix + "followers"
-		config.runnerTable = tablePrefix + "runner"
+		config.runnerTable = tablePrefix + "runners"
 		config.mediaTable = tablePrefix + "media"
 		config.paramsTable = tablePrefix + "parameters"
 	}
@@ -291,7 +291,10 @@ func (config *DDBDriver) GetRunnerUsers(runnerUsers *RunnerItem) ([]*RunnerItem,
 
 	result, err := config.db.Query(context.TODO(), input)
 	if err != nil {
-		config.log.Error("Error querying runner users", err)
+		config.log.WithFields(logrus.Fields{
+			"error": err,
+			"input": input,
+		}).Error("Error querying runner users")
 		return nil, err
 	}
 
