@@ -11,8 +11,10 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.10.0
 	github.com/aws/aws-sdk-go-v2/service/firehose v1.10.2
 	github.com/aws/aws-sdk-go-v2/service/rekognition v1.13.0
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.22.0
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.13.1
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.17.1
+	github.com/davecgh/go-spew v1.1.1
 	github.com/dghubble/go-twitter v0.0.0-20211115160449-93a8679adecb
 	github.com/rmrfslashbin/ssmparams v1.0.0
 	github.com/sirupsen/logrus v1.8.1
@@ -35,7 +37,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.3.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.5.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.9.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.22.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.6.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.11.1 // indirect
 	github.com/aws/smithy-go v1.9.0 // indirect

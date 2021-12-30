@@ -214,7 +214,7 @@ Resources:
       ExtendedS3DestinationConfiguration:
         RoleARN: !GetAtt RoleDelivery.Arn
         BucketARN: !GetAtt S3Bucket.Arn
-        Prefix: "processed/tweets/user_id=!{partitionKeyFromQuery:user_id}/year=!{partitionKeyFromQuery:year}/month=!{partitionKeyFromQuery:month}/day=!{partitionKeyFromQuery:day}/screen_name=!{partitionKeyFromQuery:screen_name}/"
+        Prefix: "processed/tweets/user_id=!{partitionKeyFromQuery:user_id}/year=!{partitionKeyFromQuery:year}/month=!{partitionKeyFromQuery:month}/"
         ErrorOutputPrefix: "errors/tweets/"
         BufferingHints:
           SizeInMBs: 128
@@ -252,7 +252,7 @@ Resources:
             - Type: MetadataExtraction
               Parameters:
                 - ParameterName: MetadataExtractionQuery
-                  ParameterValue: '{user_id : (.user.id), screen_name : (.user.screen_name), year : (.created_at | tonumber | strftime ("%Y")), month : (.created_at | tonumber | strftime ("%m")), day : (.created_at | tonumber | strftime ("%d"))}'
+                  ParameterValue: '{user_id : (.user.id), year : (.created_at | tonumber | strftime ("%Y")), month : (.created_at | tonumber | strftime ("%m"))}'
                 - ParameterName: JsonParsingEngine
                   ParameterValue: JQ-1.6
         DataFormatConversionConfiguration:
@@ -599,10 +599,6 @@ Resources:
             Type: int
           - Name: month
             Type: int
-          - Name: day
-            Type: int
-          - Name: screen_name
-            Type: string
         TableType: EXTERNAL_TABLE
 
   ParameterDDBTablePrefix:
@@ -914,7 +910,7 @@ Resources:
               SSEAlgorithm: AES256
       BucketName: { Ref: S3BucketName }
       VersioningConfiguration:
-        Status: Enabled
+        Status: Suspended
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true

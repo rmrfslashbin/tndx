@@ -14,7 +14,7 @@ import (
 
 const (
 	region         = "us-east-2"
-	deliveryStream = "tndx-timelines"
+	deliveryStream = "tndx-rmrfslashbin-DeliveryStreamTweets-DPg7a3ClhQ7u"
 	jsonPath       = "/Users/rmrfslashbin/tndx2/timeline/16020064"
 )
 
