@@ -432,7 +432,7 @@ func followers(userid int64) error {
 		"cursor": followersConfig.NextCursor,
 	}).Debug("setting up followers")
 
-	followers, resp, err := svc.twitterClient.GetUserFollowers(
+	followers, _, err := svc.twitterClient.GetUserFollowers(
 		&service.QueryParams{
 			Count:  200,
 			UserID: userid,
@@ -441,8 +441,8 @@ func followers(userid int64) error {
 	)
 	if err != nil {
 		log.WithFields(logrus.Fields{
-			"action":   "followers::GetUserFollowers",
-			"response": resp.Status,
+			"action": "followers::GetUserFollowers",
+			"error":  err,
 		}).Error("error getting user's followers")
 		return err
 	}

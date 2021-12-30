@@ -58,6 +58,7 @@ lambda-build:
 	GOOS=linux GOARCH=arm64 go build -o bin/tndx-lambda-processor/bootstrap cmd/tndx-lambda-processor/main.go
 	GOOS=linux GOARCH=arm64 go build -o bin/tndx-lambda-runner/bootstrap cmd/tndx-lambda-runner/main.go
 	GOOS=linux GOARCH=arm64 go build -o bin/tndx-lambda-rekognition/bootstrap cmd/tndx-lambda-rekognition/main.go
+	GOOS=linux GOARCH=arm64 go build -o bin/tndx-lambda-config-maker/bootstrap cmd/tndx-lambda-config-maker/main.go
 
 cfdescribe:
 	aws cloudformation describe-stack-events --stack-name $(stack_name)
