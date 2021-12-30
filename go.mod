@@ -10,6 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.4.4
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.10.0
 	github.com/aws/aws-sdk-go-v2/service/firehose v1.10.2
+	github.com/aws/aws-sdk-go-v2/service/glue v1.17.0
 	github.com/aws/aws-sdk-go-v2/service/rekognition v1.13.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.22.0
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.13.1

@@ -112,3 +112,17 @@ func (config *Config) SendRunnerMessage(params *SendMessage) error {
 	_, err = config.sqs.SendMessage(context.TODO(), message)
 	return err
 }
+
+func (config *Config) GetAttribs() (map[string]string, error) {
+	message := &sqs.GetQueueAttributesInput{
+		QueueUrl: aws.String(config.sqsQueueURL),
+		AttributeNames: []types.QueueAttributeName{
+			"All",
+		},
+	}
+	if ret, err := config.sqs.GetQueueAttributes(context.TODO(), message); err != nil {
+		return nil, err
+	} else {
+		return ret.Attributes, nil
+	}
+}

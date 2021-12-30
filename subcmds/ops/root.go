@@ -1,6 +1,8 @@
 package ops
 
 import (
+	"github.com/rmrfslashbin/tndx/subcmds/ops/crawler"
+	"github.com/rmrfslashbin/tndx/subcmds/ops/dashboard"
 	"github.com/rmrfslashbin/tndx/subcmds/ops/events"
 	"github.com/spf13/cobra"
 )
@@ -15,5 +17,7 @@ var (
 func init() {
 	RootCmd.AddCommand(
 		events.RootCmd,
+		dashboard.RootCmd,
+		crawler.RootCmd,
 	)
 }
