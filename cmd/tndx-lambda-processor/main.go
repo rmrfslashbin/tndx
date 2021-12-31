@@ -187,7 +187,7 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 
 		switch bootstrap.Function {
 		case "entities":
-			if err := entities(&messageBody.TweetID, &messageBody.EntityURL); err != nil {
+			if err := entities(&messageBody.UserID, &messageBody.TweetID, &messageBody.EntityURL); err != nil {
 				logrus.WithFields(logrus.Fields{
 					"function": "entities",
 					"error":    err,
@@ -251,7 +251,7 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 	return nil
 }
 
-func entities(tweetId *string, entityURL *string) error {
+func entities(userId *int64, tweetId *string, entityURL *string) error {
 	resp, err := http.Get(*entityURL)
 	if err != nil {
 		return err
@@ -259,7 +259,7 @@ func entities(tweetId *string, entityURL *string) error {
 	defer resp.Body.Close()
 
 	filenameParts := strings.Split(*entityURL, "/")
-	key := fmt.Sprintf("media/%s/%s", *tweetId, filenameParts[len(filenameParts)-1])
+	key := fmt.Sprintf("media/%d/%s/%s", *userId, *tweetId, filenameParts[len(filenameParts)-1])
 
 	if err := svc.storage.PutStream(key, resp.Body); err != nil {
 		return err
@@ -267,6 +267,7 @@ func entities(tweetId *string, entityURL *string) error {
 
 	log.WithFields(logrus.Fields{
 		"action":    "entites",
+		"userid":    userId,
 		"tweetId":   tweetId,
 		"entityURL": entityURL,
 	}).Info("fetched and put entity")
@@ -325,17 +326,6 @@ func favorites(userid int64, bootstrap *queue.Bootstrap) error {
 					"recordId": *opt.RecordId,
 				}).Info("put record")
 			}
-			/*
-				if err := svc.storage.Put(path.Join("favorites", strconv.FormatInt(userid, 10), tweets[t].IDStr+".json"), data); err != nil {
-					logrus.WithFields(logrus.Fields{
-						"action":  "favorites::Put",
-						"error":   err.Error(),
-						"userid":  userid,
-						"tweetId": tweets[t].ID,
-					}).Error("error putting favorites")
-					return err
-				}
-			*/
 		}
 
 		// Loop through all the media entities
@@ -353,6 +343,7 @@ func favorites(userid int64, bootstrap *queue.Bootstrap) error {
 					Message: &queue.ProcessorMessage{
 						TweetID:   tweets[t].IDStr,
 						EntityURL: url,
+						UserID:    userid,
 					},
 				}); err != nil {
 					logrus.WithFields(logrus.Fields{
@@ -641,17 +632,6 @@ func timeline(userid int64, bootstrap *queue.Bootstrap) error {
 					"recordId": *opt.RecordId,
 				}).Info("put record")
 			}
-			/*
-				if err := svc.storage.Put(path.Join("timeline", strconv.FormatInt(userid, 10), tweets[t].IDStr+".json"), data); err != nil {
-					logrus.WithFields(logrus.Fields{
-						"action":  "timeline::Put",
-						"error":   err.Error(),
-						"userid":  userid,
-						"tweetId": tweets[t].ID,
-					}).Error("error putting timeline")
-					return err
-				}
-			*/
 		}
 
 		// Loop through all the media entities
@@ -669,6 +649,7 @@ func timeline(userid int64, bootstrap *queue.Bootstrap) error {
 					Message: &queue.ProcessorMessage{
 						TweetID:   tweets[t].IDStr,
 						EntityURL: url,
+						UserID:    userid,
 					},
 				}); err != nil {
 					logrus.WithFields(logrus.Fields{

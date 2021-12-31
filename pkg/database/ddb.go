@@ -88,12 +88,16 @@ type RunnerItem struct {
 }
 
 type MediaItem struct {
-	Bucket     string `json:"Bucket"`
-	S3Key      string `json:"S3Key"`
-	Faces      []rekognitionTypes.FaceDetail
-	Labels     []rekognitionTypes.Label
-	Moderation []rekognitionTypes.ModerationLabel
-	Text       []rekognitionTypes.TextDetection
+	Bucket          string                             `json:"Bucket"`
+	S3Key           string                             `json:"S3Key"`
+	Faces           []rekognitionTypes.FaceDetail      `json:"Faces"`
+	Labels          []rekognitionTypes.Label           `json:"Labels"`
+	Moderation      []rekognitionTypes.ModerationLabel `json:"Moderation"`
+	Text            []rekognitionTypes.TextDetection   `json:"Text"`
+	FacesCount      int                                `json:"FacesCount"`
+	LabelsCount     int                                `json:"LabelsCount"`
+	ModerationCount int                                `json:"ModerationCount"`
+	TextCount       int                                `json:"TextCount"`
 }
 
 const (

@@ -87,12 +87,16 @@ func handler(ctx context.Context, event events.S3Event) error {
 			}
 
 			if err := ddb.PutMedia(&database.MediaItem{
-				Bucket:     record.S3.Bucket.Name,
-				S3Key:      record.S3.Object.Key,
-				Faces:      output.Faces,
-				Labels:     output.Labels,
-				Moderation: output.Moderation,
-				Text:       output.Text,
+				Bucket:          record.S3.Bucket.Name,
+				S3Key:           record.S3.Object.Key,
+				Faces:           output.Faces,
+				Labels:          output.Labels,
+				Moderation:      output.Moderation,
+				Text:            output.Text,
+				FacesCount:      len(output.Faces),
+				LabelsCount:     len(output.Labels),
+				ModerationCount: len(output.Moderation),
+				TextCount:       len(output.Text),
 			}); err != nil {
 				log.WithFields(logrus.Fields{
 					"error": err,
