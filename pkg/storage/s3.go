@@ -10,16 +10,16 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
-type S3Option func(c *S3StorageDriver)
+type S3Option func(c *S3Storage)
 
-type S3StorageDriver struct {
+type S3Storage struct {
 	driverName string
 	s3Bucket   string
 	s3Region   string
 }
 
-func NewS3Storage(opts ...func(*S3StorageDriver)) *S3StorageDriver {
-	config := &S3StorageDriver{}
+func NewS3Storage(opts ...func(*S3Storage)) *S3Storage {
+	config := &S3Storage{}
 	config.driverName = "S3"
 
 	// apply the list of options to Config
@@ -30,19 +30,19 @@ func NewS3Storage(opts ...func(*S3StorageDriver)) *S3StorageDriver {
 }
 
 func SetS3Bucket(s3Bucket string) S3Option {
-	return func(config *S3StorageDriver) {
+	return func(config *S3Storage) {
 		config.s3Bucket = s3Bucket
 	}
 }
 
 func SetS3Region(s3Region string) S3Option {
-	return func(config *S3StorageDriver) {
+	return func(config *S3Storage) {
 		config.s3Region = s3Region
 	}
 }
 
 // PutObject uploads data to an S3 bucket.
-func (config *S3StorageDriver) Put(key string, body []byte) error {
+func (config *S3Storage) Put(key string, body []byte) error {
 	// *s3manager.UploadOutput
 
 	// The session the S3 Uploader will use
@@ -83,7 +83,7 @@ func (config *S3StorageDriver) Put(key string, body []byte) error {
 	// return result, err
 }
 
-func (config *S3StorageDriver) PutStream(key string, fp io.Reader) error {
+func (config *S3Storage) PutStream(key string, fp io.Reader) error {
 	// *s3manager.UploadOutput
 
 	// The session the S3 Uploader will use
@@ -107,6 +107,6 @@ func (config *S3StorageDriver) PutStream(key string, fp io.Reader) error {
 	return err
 }
 
-func (config *S3StorageDriver) GetDriverName() string {
+func (config *S3Storage) GetDriverName() string {
 	return config.driverName
 }

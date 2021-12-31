@@ -24,8 +24,8 @@ import (
 // service stores drivers and clients
 type services struct {
 	twitterClient *service.Config
-	storage       storage.StorageDriver
-	db            database.DatabaseDriver
+	storage       *storage.S3Storage
+	db            *database.DDBDriver
 	queue         *queue.Config
 	kenisis       *kenisis.Config
 }

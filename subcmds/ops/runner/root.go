@@ -31,7 +31,7 @@ type Flags struct {
 // service stores drivers and clients
 type services struct {
 	twitterClient *service.Config
-	db            database.DatabaseDriver
+	db            *database.DDBDriver
 }
 
 var (

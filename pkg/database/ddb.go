@@ -32,7 +32,17 @@ type DDBDriver struct {
 	paramsTable    string
 	db             *dynamodb.Client
 }
+type TweetConfigQuery struct {
+	UserID  int64
+	SinceID int64
+	MaxID   int64
+}
 
+type CursoredTweetConfigQuery struct {
+	UserID         int64
+	PreviousCursor int64
+	NextCursor     int64
+}
 type TweetsItem struct {
 	Domain     string `json:"Domain"`
 	UserID     int64  `json:"UserID"`
