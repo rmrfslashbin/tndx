@@ -1,18 +1,15 @@
 #.DEFAULT_GOAL := default
 .PHONY: build
 
-PROJECT := tndx
+stack_name = tndx-rmrfslashbin
+deploy_bucket = is-us-east-2-deployment
+aws_profile = us-east-2
+#deploy_bucket = is-us-east-1-deployment
 
-deploy_bucket_us_east_2 = is-us-east-2-deployment
-deploy_bucket_us_east_1 = is-us-east-1-deployment
-stack_name = $(PROJECT)
-
-SHA_CMD := $(shell { command -v sha256sum || command -v shasum; } 2>/dev/null)
-
-#default: run
+#SHA_CMD := $(shell { command -v sha256sum || command -v shasum; } 2>/dev/null)
 
 build:
-	@printf "Building $(PROJECT)\n"
+	@printf "Building $(stack_name)\n"
 	@printf "  building tndx-runner:\n"
 	@printf "    linux  :: arm64"
 	@GOOS=linux GOARCH=arm64 go build -o bin/tndx-runner-linux-arm64 cmd/tndx-runner/main.go
@@ -46,13 +43,13 @@ tidy:
 	@go mod tidy
 
 update:
-	@echo "Updating $(PROJECT)"
+	@echo "Updating $(stack_name)"
 	@go get -u ./...
 	@go mod tidy
 
 deploy-us-east-2: lambda-build
-	aws --profile us-east-2 cloudformation package --template-file aws-cloudformation/template.yaml --s3-bucket $(deploy_bucket_us_east_2) --output-template-file build/out.yaml
-	aws --profile us-east-2 cloudformation deploy --template-file build/out.yaml --s3-bucket $(deploy_bucket_us_east_2) --stack-name $(stack_name)-rmrfslashbin --capabilities CAPABILITY_NAMED_IAM
+	aws --profile $(aws_profile) cloudformation package --template-file aws-cloudformation/template.yaml --s3-bucket $(deploy_bucket) --output-template-file build/out.yaml
+	aws --profile $(aws_profile) cloudformation deploy --template-file build/out.yaml --s3-bucket $(deploy_bucket) --stack-name $(stack_name) --capabilities CAPABILITY_NAMED_IAM
 
 lambda-build:
 	GOOS=linux GOARCH=arm64 go build -o bin/tndx-lambda-processor/bootstrap cmd/tndx-lambda-processor/main.go
@@ -61,4 +58,8 @@ lambda-build:
 	GOOS=linux GOARCH=arm64 go build -o bin/tndx-lambda-config-maker/bootstrap cmd/tndx-lambda-config-maker/main.go
 
 cfdescribe:
-	aws cloudformation describe-stack-events --stack-name $(stack_name)
+	aws --profile $(aws_profile) cloudformation describe-stack-events --stack-name $(stack_name)
+
+prune:
+	@git gc --prune=now
+	@git remote prune origin
