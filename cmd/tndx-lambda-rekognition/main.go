@@ -16,13 +16,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type KeyParts struct {
-	Root     string
-	UserID   int64
-	TweetID  int64
-	Filename string
-}
-
 var (
 	aws_region string
 	log        *logrus.Logger
@@ -85,17 +78,17 @@ func handler(ctx context.Context, event events.S3Event) error {
 		parts := strings.Split(record.S3.Object.Key, "/")
 		userID, err := strconv.ParseInt(parts[1], 10, 64)
 		if err != nil {
-			panic(err)
+			log.WithFields(logrus.Fields{
+				"error": err,
+			}).Error("failed to parse userID from S3 key")
+			return err
 		}
 		tweetID, err := strconv.ParseInt(parts[2], 10, 64)
 		if err != nil {
-			panic(err)
-		}
-		keyparts := &KeyParts{
-			Root:     parts[0],
-			UserID:   userID,
-			TweetID:  tweetID,
-			Filename: parts[3],
+			log.WithFields(logrus.Fields{
+				"error": err,
+			}).Error("failed to parse tweetID from S3 key")
+			return err
 		}
 
 		if strings.HasPrefix(record.EventName, "ObjectCreated") {
@@ -113,9 +106,8 @@ func handler(ctx context.Context, event events.S3Event) error {
 			if err := ddb.PutMedia(&database.MediaItem{
 				Bucket:          record.S3.Bucket.Name,
 				S3Key:           record.S3.Object.Key,
-				UserID:          keyparts.UserID,
-				TweetID:         keyparts.TweetID,
-				Filename:        keyparts.Filename,
+				UserID:          userID,
+				TweetID:         tweetID,
 				Faces:           output.Faces,
 				Labels:          output.Labels,
 				Moderation:      output.Moderation,
@@ -136,8 +128,8 @@ func handler(ctx context.Context, event events.S3Event) error {
 			}).Info("media processed and added to ddb")
 		} else if strings.HasPrefix(record.EventName, "ObjectRemoved") {
 			if err := ddb.DeleteMedia(&database.MediaItem{
-				Bucket: record.S3.Bucket.Name,
-				S3Key:  record.S3.Object.Key,
+				TweetID: tweetID,
+				S3Key:   record.S3.Object.Key,
 			}); err != nil {
 				log.WithFields(logrus.Fields{
 					"error": err,

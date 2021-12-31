@@ -92,7 +92,6 @@ type MediaItem struct {
 	S3Key           string                             `json:"S3Key"`
 	UserID          int64                              `json:"UserID"`
 	TweetID         int64                              `json:"TweetID"`
-	Filename        string                             `json:"Filename"`
 	Faces           []rekognitionTypes.FaceDetail      `json:"Faces"`
 	Labels          []rekognitionTypes.Label           `json:"Labels"`
 	Moderation      []rekognitionTypes.ModerationLabel `json:"Moderation"`
@@ -170,8 +169,8 @@ func (config *DDBDriver) DeleteMedia(mediaItem *MediaItem) error {
 	input := &dynamodb.DeleteItemInput{
 		TableName: aws.String(config.mediaTable),
 		Key: map[string]types.AttributeValue{
-			"Bucket": &types.AttributeValueMemberS{Value: mediaItem.Bucket},
-			"S3Key":  &types.AttributeValueMemberS{Value: mediaItem.S3Key},
+			"TweetID": &types.AttributeValueMemberN{Value: strconv.FormatInt(mediaItem.TweetID, 10)},
+			"S3Key":   &types.AttributeValueMemberS{Value: mediaItem.S3Key},
 		},
 	}
 	_, err := config.db.DeleteItem(context.TODO(), input)

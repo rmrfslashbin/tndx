@@ -137,15 +137,26 @@ Resources:
       TableName: !Sub "${ParamDDBTablePrefix}media"
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
-        - AttributeName: Bucket
-          AttributeType: S
+        - AttributeName: TweetID
+          AttributeType: N
+        - AttributeName: UserID
+          AttributeType: N
         - AttributeName: S3Key
           AttributeType: S
       KeySchema:
-        - AttributeName: Bucket
+        - AttributeName: TweetID
           KeyType: HASH
         - AttributeName: S3Key
           KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: !Sub "${ParamDDBTablePrefix}media-gsi-userid"
+          KeySchema:
+            - AttributeName: UserID
+              KeyType: HASH
+            - AttributeName: S3Key
+              KeyType: RANGE
+          Projection:
+            ProjectionType: KEYS_ONLY
       Tags:
         - Key: "Environment"
           Value: { Ref: ParamEnvironment }
@@ -214,7 +225,7 @@ Resources:
       ExtendedS3DestinationConfiguration:
         RoleARN: !GetAtt RoleDelivery.Arn
         BucketARN: !GetAtt S3Bucket.Arn
-        Prefix: "processed/tweets/user_id=!{partitionKeyFromQuery:user_id}/year=!{partitionKeyFromQuery:year}/month=!{partitionKeyFromQuery:month}/"
+        Prefix: "processed/tweets/year=!{partitionKeyFromQuery:year}/month=!{partitionKeyFromQuery:month}/"
         ErrorOutputPrefix: "errors/tweets/"
         BufferingHints:
           SizeInMBs: 128
@@ -252,7 +263,7 @@ Resources:
             - Type: MetadataExtraction
               Parameters:
                 - ParameterName: MetadataExtractionQuery
-                  ParameterValue: '{user_id : (.user.id), year : (.created_at | tonumber | strftime ("%Y")), month : (.created_at | tonumber | strftime ("%m"))}'
+                  ParameterValue: '{year : (.created_at | tonumber | strftime ("%Y")), month : (.created_at | tonumber | strftime ("%m"))}'
                 - ParameterName: JsonParsingEngine
                   ParameterValue: JQ-1.6
         DataFormatConversionConfiguration:
@@ -268,7 +279,8 @@ Resources:
               OpenXJsonSerDe: {}
           OutputFormatConfiguration:
             Serializer:
-              ParquetSerDe: {}
+              OrcSerDe:
+                Compression: SNAPPY
           Enabled: True
 
   EventTndxRunnerFavorites:
@@ -580,21 +592,17 @@ Resources:
               Type: string
             - Name: quoted_status
               Type: struct<coordinates:string,created_at:string,current_user_retweet:string,entities:struct<hashtags:array<struct<indices:array<int>,text:string>>,media:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string,id:bigint,id_str:string,media_url:string,media_url_https:string,source_status_id:bigint,source_status_id_str:string,type:string,sizes:struct<thumb:struct<w:int,h:int,resize:string>,large:struct<w:int,h:int,resize:string>,medium:struct<w:int,h:int,resize:string>,small:struct<w:int,h:int,resize:string>>,video_info:struct<aspect_ratio:array<int>,duration_millis:int,variants:string>>>,urls:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string>>,user_mentions:array<struct<indices:array<int>,id:bigint,id_str:string,name:string,screen_name:string>>>,favorite_count:int,favorited:boolean,filter_level:string,id:bigint,id_str:string,in_reply_to_screen_name:string,in_reply_to_status_id:bigint,in_reply_to_status_id_str:string,in_reply_to_user_id:bigint,in_reply_to_user_id_str:string,lang:string,possibly_sensitive:boolean,quote_count:int,reply_count:int,retweet_count:int,retweeted:boolean,retweeted_status:string,source:string,scopes:string,text:string,full_text:string,display_text_range:array<int>,place:struct<attributes:string,bounding_box:struct<coordinates:array<array<array<double>>>,type:string>,country:string,country_code:string,full_name:string,geometry:string,id:string,name:string,place_type:string,polylines:string,url:string>,truncated:boolean,user:struct<contributors_enabled:boolean,created_at:string,default_profile:boolean,default_profile_image:boolean,description:string,email:string,entities:struct<url:struct<hashtags:string,media:string,urls:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string>>,user_mentions:string>,description:struct<hashtags:string,media:string,urls:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string>>,user_mentions:string>>,favourites_count:int,follow_request_sent:boolean,followers_count:int,friends_count:int,geo_enabled:boolean,id:bigint,id_str:string,is_translator:boolean,lang:string,listed_count:int,location:string,name:string,notifications:boolean,profile_background_color:string,profile_background_image_url:string,profile_background_image_url_https:string,profile_background_tile:boolean,profile_banner_url:string,profile_image_url:string,profile_image_url_https:string,profile_link_color:string,profile_sidebar_border_color:string,profile_sidebar_fill_color:string,profile_text_color:string,profile_use_background_image:boolean,protected:boolean,screen_name:string,show_all_inline_media:boolean,status:string,statuses_count:int,time_zone:string,url:string,utc_offset:int,verified:boolean,withheld_in_countries:array<string>,withheld_scope:string>,withheld_copyright:boolean,withheld_in_countries:string,withheld_scope:string,extended_entities:struct<media:array<struct<indices:array<int>,display_url:string,expanded_url:string,url:string,id:bigint,id_str:string,media_url:string,media_url_https:string,source_status_id:bigint,source_status_id_str:string,type:string,sizes:struct<thumb:struct<w:int,h:int,resize:string>,large:struct<w:int,h:int,resize:string>,medium:struct<w:int,h:int,resize:string>,small:struct<w:int,h:int,resize:string>>,video_info:struct<aspect_ratio:array<int>,duration_millis:int,variants:array<struct<content_type:string,bitrate:int,url:string>>>>>>,extended_tweet:string,quoted_status_id:bigint,quoted_status_id_str:string,quoted_status:string>
-          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
-          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+          InputFormat: org.apache.hadoop.hive.ql.io.orc.OrcInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat
           Location: !Sub "s3://${S3Bucket}/processed/tweets/"
           Compressed: false
           NumberOfBuckets: -1
           SerdeInfo:
-            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
-            Parameters:
-              serialization.format: "1"
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.orc.OrcSerde
           BucketColumns: []
           SortColumns: []
           StoredAsSubDirectories: false
         PartitionKeys:
-          - Name: user_id
-            Type: bigint
           - Name: year
             Type: int
           - Name: month
@@ -620,6 +628,18 @@ Resources:
       Type: String
       Value: { Ref: DeliveryStreamTweets }
       Description: !Sub "tndx ${ParamInstanceName} tweet delivery stream"
+      Tags:
+        Environment: { Ref: ParamEnvironment }
+        Application: { Ref: ParamAppName }
+        Instance: { Ref: ParamInstanceName }
+
+  ParameterGlueTweetsCrawlerName:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/tndx/${ParamInstanceName}/glue/tweets/crawler-name"
+      Type: String
+      Value: { Ref: GlueCrawlerTweets }
+      Description: !Sub "tndx ${ParamInstanceName} tweet glue crawler name"
       Tags:
         Environment: { Ref: ParamEnvironment }
         Application: { Ref: ParamAppName }
