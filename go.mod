@@ -15,6 +15,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.22.0
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.13.1
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.17.1
+	github.com/davecgh/go-spew v1.1.1
 	github.com/dghubble/go-twitter v0.0.0-20211115160449-93a8679adecb
 	github.com/rmrfslashbin/ssmparams v1.0.0
 	github.com/sirupsen/logrus v1.8.1

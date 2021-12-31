@@ -90,6 +90,9 @@ type RunnerItem struct {
 type MediaItem struct {
 	Bucket          string                             `json:"Bucket"`
 	S3Key           string                             `json:"S3Key"`
+	UserID          int64                              `json:"UserID"`
+	TweetID         int64                              `json:"TweetID"`
+	Filename        string                             `json:"Filename"`
 	Faces           []rekognitionTypes.FaceDetail      `json:"Faces"`
 	Labels          []rekognitionTypes.Label           `json:"Labels"`
 	Moderation      []rekognitionTypes.ModerationLabel `json:"Moderation"`

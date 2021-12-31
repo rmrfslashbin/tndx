@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -14,6 +15,13 @@ import (
 	"github.com/rmrfslashbin/tndx/pkg/ssmparams"
 	"github.com/sirupsen/logrus"
 )
+
+type KeyParts struct {
+	Root     string
+	UserID   int64
+	TweetID  int64
+	Filename string
+}
 
 var (
 	aws_region string
@@ -74,6 +82,22 @@ func handler(ctx context.Context, event events.S3Event) error {
 	)
 
 	for _, record := range event.Records {
+		parts := strings.Split(record.S3.Object.Key, "/")
+		userID, err := strconv.ParseInt(parts[1], 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		tweetID, err := strconv.ParseInt(parts[2], 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		keyparts := &KeyParts{
+			Root:     parts[0],
+			UserID:   userID,
+			TweetID:  tweetID,
+			Filename: parts[3],
+		}
+
 		if strings.HasPrefix(record.EventName, "ObjectCreated") {
 			output, err := rk.Process(&types.S3Object{
 				Bucket: aws.String(record.S3.Bucket.Name),
@@ -89,6 +113,9 @@ func handler(ctx context.Context, event events.S3Event) error {
 			if err := ddb.PutMedia(&database.MediaItem{
 				Bucket:          record.S3.Bucket.Name,
 				S3Key:           record.S3.Object.Key,
+				UserID:          keyparts.UserID,
+				TweetID:         keyparts.TweetID,
+				Filename:        keyparts.Filename,
 				Faces:           output.Faces,
 				Labels:          output.Labels,
 				Moderation:      output.Moderation,
