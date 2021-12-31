@@ -6,9 +6,7 @@ import (
 
 	"github.com/rmrfslashbin/ssmparams"
 	"github.com/rmrfslashbin/tndx/pkg/database"
-	"github.com/rmrfslashbin/tndx/pkg/queue"
 	"github.com/rmrfslashbin/tndx/pkg/service"
-	"github.com/rmrfslashbin/tndx/pkg/storage"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -33,9 +31,7 @@ type Flags struct {
 // service stores drivers and clients
 type services struct {
 	twitterClient *service.Config
-	storage       storage.StorageDriver
 	db            database.DatabaseDriver
-	queue         *queue.Config
 }
 
 var (
@@ -45,7 +41,7 @@ var (
 
 	// rootCmd is the Viper root command
 	RootCmd = &cobra.Command{
-		Version: "v2021.12.20-00",
+		Use: "runner",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			// Set the log level
 			switch flags.loglevel {

@@ -9,34 +9,19 @@ aws_profile = us-east-2
 #SHA_CMD := $(shell { command -v sha256sum || command -v shasum; } 2>/dev/null)
 
 build:
-	@printf "Building $(stack_name)\n"
-	@printf "  building tndx-runner:\n"
-	@printf "    linux  :: arm64"
-	@GOOS=linux GOARCH=arm64 go build -o bin/tndx-runner-linux-arm64 cmd/tndx-runner/main.go
-	@printf " dome.\n"
-	@printf "    linux  :: amd64"
-	@GOOS=linux GOARCH=amd64 go build -o bin/tndx-runner-linux-amd64 cmd/tndx-runner/main.go
-	@printf " dome.\n"
-	@printf "    darwin :: amd64"
-	@GOOS=darwin GOARCH=amd64 go build -o bin/tndx-runner-darwin-amd64 cmd/tndx-runner/main.go
-	@printf " dome.\n"
-	@printf "    darwin :: arm64"
-	@GOOS=darwin GOARCH=arm64 go build -o bin/tndx-runner-darwin-arm64 cmd/tndx-runner/main.go
-	@printf " dome.\n"
-
 	@printf "  building tndx-ops:\n"
 	@printf "    linux  :: arm64"
 	@GOOS=linux GOARCH=arm64 go build -o bin/tndx-ops-linux-arm64 cmd/tndx-ops/main.go
-	@printf " dome.\n"
+	@printf " done.\n"
 	@printf "    linux  :: amd64"
 	@GOOS=linux GOARCH=amd64 go build -o bin/tndx-ops-linux-amd64 cmd/tndx-ops/main.go
-	@printf " dome.\n"
+	@printf " done.\n"
 	@printf "    darwin :: amd64"
 	@GOOS=darwin GOARCH=amd64 go build -o bin/tndx-ops-darwin-amd64 cmd/tndx-ops/main.go
-	@printf " dome.\n"
+	@printf " done.\n"
 	@printf "    darwin :: arm64"
 	@GOOS=darwin GOARCH=arm64 go build -o bin/tndx-ops-darwin-arm64 cmd/tndx-ops/main.go
-	@printf " dome.\n"
+	@printf " done.\n"
 
 tidy:
 	@echo "Making mod tidy"
