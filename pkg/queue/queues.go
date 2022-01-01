@@ -39,6 +39,7 @@ type Option func(config *Config)
 type Config struct {
 	sqsQueueURL string
 	region      string
+	profile     string
 	log         *logrus.Logger
 	sqs         *sqs.Client
 }
@@ -57,6 +58,10 @@ func NewSQS(opts ...func(*Config)) *Config {
 
 	c, err := config.LoadDefaultConfig(context.TODO(), func(o *config.LoadOptions) error {
 		o.Region = cfg.region
+		if cfg.profile != "" {
+			o.SharedConfigProfile = cfg.profile
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -66,6 +71,12 @@ func NewSQS(opts ...func(*Config)) *Config {
 	cfg.sqs = svc
 
 	return cfg
+}
+
+func SetProfile(profile string) Option {
+	return func(config *Config) {
+		config.profile = profile
+	}
 }
 
 func SetSQSURL(sqsQueueURL string) Option {

@@ -13,7 +13,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/rmrfslashbin/tndx/pkg/database"
-	"github.com/rmrfslashbin/tndx/pkg/kenisis"
+	"github.com/rmrfslashbin/tndx/pkg/kinesis"
 	"github.com/rmrfslashbin/tndx/pkg/queue"
 	"github.com/rmrfslashbin/tndx/pkg/service"
 	"github.com/rmrfslashbin/tndx/pkg/ssmparams"
@@ -27,7 +27,7 @@ type services struct {
 	storage       *storage.S3Storage
 	db            *database.DDBDriver
 	queue         *queue.Config
-	kenisis       *kenisis.Config
+	kinesis       *kinesis.Config
 }
 
 var (
@@ -171,6 +171,7 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 		svc.storage = storage.NewS3Storage(
 			storage.SetS3Bucket(outputs.Params[bootstrap.S3Bucket].(string)),
 			storage.SetS3Region(aws_region),
+			storage.SetLogger(log),
 		)
 
 		svc.twitterClient = service.New(
@@ -179,10 +180,10 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 			service.SetLogger(log),
 		)
 
-		svc.kenisis = kenisis.NewFirehose(
-			kenisis.SetRegion(aws_region),
-			kenisis.SetLogger(log),
-			kenisis.SetDeliveryStream(outputs.Params[bootstrap.DeliveryStream].(string)),
+		svc.kinesis = kinesis.NewFirehose(
+			kinesis.SetRegion(aws_region),
+			kinesis.SetLogger(log),
+			kinesis.SetDeliveryStream(outputs.Params[bootstrap.DeliveryStream].(string)),
 		)
 
 		switch bootstrap.Function {
@@ -315,7 +316,7 @@ func favorites(userid int64, bootstrap *queue.Bootstrap) error {
 	for t := range tweets {
 		listOfTweets[t] = &database.UserToTweetLink{UserID: userid, TweetID: tweets[t].ID}
 		if data, err := json.Marshal(tweets[t]); err == nil {
-			if opt, err := svc.kenisis.PutRecord(data); err != nil {
+			if opt, err := svc.kinesis.PutRecord(data); err != nil {
 				log.WithFields(logrus.Fields{
 					"error":   err,
 					"tweetId": tweets[t].ID,
@@ -643,7 +644,7 @@ func timeline(userid int64, bootstrap *queue.Bootstrap) error {
 			"tweet":  tweets[t],
 		}).Info("base tweet")
 		if data, err := json.Marshal(tweets[t]); err == nil {
-			if opt, err := svc.kenisis.PutRecord(data); err != nil {
+			if opt, err := svc.kinesis.PutRecord(data); err != nil {
 				log.WithFields(logrus.Fields{
 					"error":   err,
 					"tweetId": tweets[t].ID,

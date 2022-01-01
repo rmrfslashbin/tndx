@@ -18,7 +18,7 @@ func runEventsList() error {
 		fmt.Printf("%s\n", *rule.Name)
 		fmt.Printf("%s\n", *rule.Description)
 		fmt.Printf("%s\n", *rule.ScheduleExpression)
-		fmt.Printf("%s\n\n", *rule.State)
+		fmt.Printf("%s\n\n", rule.State)
 	}
 	return nil
 }

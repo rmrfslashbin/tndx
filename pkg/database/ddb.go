@@ -24,6 +24,7 @@ type DDBDriver struct {
 	driverName     string
 	tablePrefix    string
 	region         string
+	profile        string
 	favoritesTable string
 	friendsTable   string
 	followersTable string
@@ -140,6 +141,10 @@ func NewDDB(opts ...func(*DDBDriver)) *DDBDriver {
 
 	c, err := config.LoadDefaultConfig(context.TODO(), func(o *config.LoadOptions) error {
 		o.Region = cfg.region
+
+		if cfg.profile != "" {
+			o.SharedConfigProfile = cfg.profile
+		}
 		return nil
 	})
 	if err != nil {
@@ -149,6 +154,12 @@ func NewDDB(opts ...func(*DDBDriver)) *DDBDriver {
 	cfg.db = svc
 
 	return cfg
+}
+
+func SetDDBProfile(profile string) func(*DDBDriver) {
+	return func(config *DDBDriver) {
+		config.profile = profile
+	}
 }
 
 func SetDDBRegion(region string) func(*DDBDriver) {

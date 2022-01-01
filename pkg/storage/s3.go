@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/sirupsen/logrus"
 )
 
 type S3Option func(c *S3Storage)
@@ -16,6 +17,13 @@ type S3Storage struct {
 	driverName string
 	s3Bucket   string
 	s3Region   string
+	log        *logrus.Logger
+}
+
+func SetLogger(logger *logrus.Logger) S3Option {
+	return func(config *S3Storage) {
+		config.log = logger
+	}
 }
 
 func NewS3Storage(opts ...func(*S3Storage)) *S3Storage {

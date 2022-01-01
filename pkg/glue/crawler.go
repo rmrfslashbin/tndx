@@ -16,6 +16,7 @@ type Option func(config *Config)
 // Configuration structure.
 type Config struct {
 	region      string
+	profile     string
 	log         *logrus.Logger
 	crawlerName string
 	glue        *glue.Client
@@ -35,6 +36,9 @@ func NewCrawler(opts ...func(*Config)) *Config {
 
 	c, err := config.LoadDefaultConfig(context.TODO(), func(o *config.LoadOptions) error {
 		o.Region = cfg.region
+		if cfg.profile != "" {
+			o.SharedConfigProfile = cfg.profile
+		}
 		return nil
 	})
 	if err != nil {
@@ -42,6 +46,12 @@ func NewCrawler(opts ...func(*Config)) *Config {
 	}
 	cfg.glue = glue.NewFromConfig(c)
 	return cfg
+}
+
+func SetProfile(profile string) Option {
+	return func(config *Config) {
+		config.profile = profile
+	}
 }
 
 func SetRegion(region string) Option {
