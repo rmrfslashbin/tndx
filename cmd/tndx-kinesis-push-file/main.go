@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/dghubble/go-twitter/twitter"
-	"github.com/rmrfslashbin/tndx/pkg/kenisis"
+	"github.com/rmrfslashbin/tndx/pkg/kinesis"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -27,7 +27,7 @@ var (
 	}
 	jsonFile string
 	log      *logrus.Logger
-	k        *kenisis.Config
+	k        *kinesis.Config
 )
 
 func init() {
@@ -37,10 +37,10 @@ func init() {
 		FullTimestamp: true,
 	})
 
-	k = kenisis.NewFirehose(
-		kenisis.SetRegion(region),
-		kenisis.SetLogger(log),
-		kenisis.SetDeliveryStream(deliveryStream),
+	k = kinesis.NewFirehose(
+		kinesis.SetRegion(region),
+		kinesis.SetLogger(log),
+		kinesis.SetDeliveryStream(deliveryStream),
 	)
 
 	RootCmd.Flags().StringVarP(&jsonFile, "jsonfile", "j", "", "path to json file")

@@ -1,4 +1,4 @@
-package kenisis
+package kinesis
 
 import (
 	"context"
