@@ -783,10 +783,18 @@ Resources:
               - firehose:PutRecordBatch
             Resource:
               - !GetAtt DeliveryStreamTweets.Arn
+
+  GroupTndxROAccess:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: !Sub "Tndx-${ParamInstanceName}-ROAccess"
+
   PolicyTndxROAccess:
     Type: "AWS::IAM::Policy"
     Properties:
       PolicyName: !Sub "Tndx-${ParamInstanceName}-RO-Access"
+      Groups:
+        - !Ref GroupTndxROAccess
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
