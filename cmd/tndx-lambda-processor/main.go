@@ -423,7 +423,7 @@ func followers(userid int64) error {
 		"cursor": followersConfig.NextCursor,
 	}).Debug("setting up followers")
 
-	followers, _, err := svc.twitterClient.GetUserFollowers(
+	followers, resp, err := svc.twitterClient.GetUserFollowers(
 		&service.QueryParams{
 			Count:  200,
 			UserID: userid,
@@ -431,11 +431,24 @@ func followers(userid int64) error {
 		},
 	)
 	if err != nil {
-		log.WithFields(logrus.Fields{
-			"action": "followers::GetUserFollowers",
-			"error":  err,
-		}).Error("error getting user's followers")
-		return err
+		if resp.StatusCode == 429 {
+			log.WithFields(logrus.Fields{
+				"action":         "followers::GetUserFollowers",
+				"error":          err,
+				"responsestatus": resp.Header,
+			}).Error("rate limit exceeded getting user's followers")
+			log.WithFields(logrus.Fields{
+				"action": "followers::GetUserFollowers",
+				"error":  err,
+			}).Error("rate limit exceeded getting user's followers")
+			return nil
+		} else {
+			log.WithFields(logrus.Fields{
+				"action": "followers::GetUserFollowers",
+				"error":  err,
+			}).Error("error getting user's followers")
+			return err
+		}
 	}
 
 	if err := svc.db.PutFollowersConfig(
@@ -520,11 +533,20 @@ func friends(userid int64) error {
 		},
 	)
 	if err != nil {
-		log.WithFields(logrus.Fields{
-			"action":   "friends::GetUserFriends",
-			"response": resp.Status,
-		}).Error("error getting user's friends")
-		return err
+		if resp.StatusCode == 429 {
+			log.WithFields(logrus.Fields{
+				"action":         "friends::GetUserFriends",
+				"error":          err,
+				"responsestatus": resp.Header,
+			}).Error("rate limit exceeded getting user's friends")
+			return nil
+		} else {
+			log.WithFields(logrus.Fields{
+				"action":   "friends::GetUserFriends",
+				"response": resp.Status,
+			}).Error("error getting user's friends")
+			return err
+		}
 	}
 
 	if err := svc.db.PutFriendsConfig(
