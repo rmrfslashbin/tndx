@@ -783,6 +783,53 @@ Resources:
               - firehose:PutRecordBatch
             Resource:
               - !GetAtt DeliveryStreamTweets.Arn
+  PolicyTndxROAccess:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: !Sub "Tndx-${ParamInstanceName}-RO-Access"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - glue:GetTables
+              - glue:GetDatabases
+              - glue:GetTable
+            Resource:
+              - !Sub arn:aws:s3:::${S3Bucket}/processed/*
+              - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog
+              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:database/${GlueDatabaseTndx}
+              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:table/${GlueDatabaseTndx}/*
+          - Effect: Allow
+            Action:
+              - glue:GetTables
+              - glue:GetDatabases
+              - glue:GetTable
+            Resource:
+              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:catalog
+              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:database/${GlueDatabaseTndx}
+          - Effect: Allow
+            Action:
+              - glue:BatchGetPartition
+            Resources:
+              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:catalog
+              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:database/${GlueDatabaseTndx}
+              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:table/${GlueDatabaseTndx}/*
+          - Effect: Allow
+            Action:
+              - kms:Decrypt
+              - glue:GetTables
+              - glue:GetPartitions
+              - kms:GenerateDataKey
+              - s3:ListBucket
+              - glue:GetDatabases
+            Resources:
+              - !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/d401588e-f306-4b09-bdcb-f0fb4819f752
+              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:catalog
+              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:database/${GlueDatabaseTndx}
+              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:table/${GlueDatabaseTndx}/*
+              - !Sub arn:aws:s3:::${S3Bucket}
 
   PolicyTndxS3Access:
     Type: "AWS::IAM::Policy"
