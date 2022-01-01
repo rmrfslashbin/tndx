@@ -804,39 +804,20 @@ Resources:
               - glue:GetTables
               - glue:GetDatabases
               - glue:GetTable
+              - glue:BatchGetPartition
+              - glue:GetPartitions
             Resource:
               - !Sub arn:aws:s3:::${S3Bucket}/processed/*
               - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog
-              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:database/${GlueDatabaseTndx}
-              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:table/${GlueDatabaseTndx}/*
-          - Effect: Allow
-            Action:
-              - glue:GetTables
-              - glue:GetDatabases
-              - glue:GetTable
-            Resource:
-              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:catalog
-              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:database/${GlueDatabaseTndx}
-          - Effect: Allow
-            Action:
-              - glue:BatchGetPartition
-            Resources:
-              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:catalog
-              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:database/${GlueDatabaseTndx}
-              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:table/${GlueDatabaseTndx}/*
+              - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/${GlueDatabaseTndx}
+              - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/${GlueDatabaseTndx}/*
           - Effect: Allow
             Action:
               - kms:Decrypt
-              - glue:GetTables
-              - glue:GetPartitions
               - kms:GenerateDataKey
               - s3:ListBucket
-              - glue:GetDatabases
-            Resources:
+            Resource:
               - !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/d401588e-f306-4b09-bdcb-f0fb4819f752
-              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:catalog
-              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:database/${GlueDatabaseTndx}
-              - !Sub arn:aws:${AWS::Region}:${AWS::AccountId}:table/${GlueDatabaseTndx}/*
               - !Sub arn:aws:s3:::${S3Bucket}
 
   PolicyTndxS3Access:
