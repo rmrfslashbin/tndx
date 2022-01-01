@@ -3,13 +3,11 @@ package storage
 import (
 	"bytes"
 	"compress/gzip"
-	"context"
 	"io"
-	"log"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/sirupsen/logrus"
 )
 
@@ -17,40 +15,9 @@ type S3Option func(c *S3Storage)
 
 type S3Storage struct {
 	driverName string
-	bucket     string
-	region     string
-	profile    string
+	s3Bucket   string
+	s3Region   string
 	log        *logrus.Logger
-	svc        *s3.Client
-}
-
-func NewS3Storage(opts ...func(*S3Storage)) *S3Storage {
-	cfg := &S3Storage{}
-	cfg.driverName = "S3"
-
-	// apply the list of options to Config
-	for _, opt := range opts {
-		opt(cfg)
-	}
-
-	if cfg.region == "" {
-		log.Fatal("region is required")
-	}
-
-	c, err := config.LoadDefaultConfig(context.TODO(), func(o *config.LoadOptions) error {
-		o.Region = cfg.region
-		if cfg.profile != "" {
-			o.SharedConfigProfile = cfg.profile
-		}
-		return nil
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	cfg.svc = s3.NewFromConfig(c)
-
-	return cfg
 }
 
 func SetLogger(logger *logrus.Logger) S3Option {
@@ -59,25 +26,42 @@ func SetLogger(logger *logrus.Logger) S3Option {
 	}
 }
 
-func SetProfile(profile string) S3Option {
+func NewS3Storage(opts ...func(*S3Storage)) *S3Storage {
+	config := &S3Storage{}
+	config.driverName = "S3"
+
+	// apply the list of options to Config
+	for _, opt := range opts {
+		opt(config)
+	}
+	return config
+}
+
+func SetS3Bucket(s3Bucket string) S3Option {
 	return func(config *S3Storage) {
-		config.profile = profile
+		config.s3Bucket = s3Bucket
 	}
 }
 
-func SetS3Bucket(bucket string) S3Option {
+func SetS3Region(s3Region string) S3Option {
 	return func(config *S3Storage) {
-		config.bucket = bucket
+		config.s3Region = s3Region
 	}
 }
 
-func SetS3Region(region string) S3Option {
-	return func(config *S3Storage) {
-		config.region = region
-	}
-}
-
+// PutObject uploads data to an S3 bucket.
 func (config *S3Storage) Put(key string, body []byte) error {
+	// *s3manager.UploadOutput
+
+	// The session the S3 Uploader will use
+	// Specify profile for config and region for requests.
+	s3Session := session.Must(session.NewSessionWithOptions(session.Options{
+		Config: aws.Config{Region: aws.String(config.s3Region)},
+	}))
+
+	// Create an uploader with the session and default options.
+	uploader := s3manager.NewUploader(s3Session)
+
 	// gzip data
 	var buf bytes.Buffer
 	zw := gzip.NewWriter(&buf)
@@ -94,33 +78,43 @@ func (config *S3Storage) Put(key string, body []byte) error {
 	// Append ".gz" to the key (filename).
 	key = key + ".gz"
 
-	config.log.WithFields(logrus.Fields{
-		"bucket": config.bucket,
-		"key":    key,
-	}).Info("putting object")
-
-	if _, err := config.svc.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket: aws.String(config.bucket),
-		Key:    aws.String(key),
-		Body:   bytes.NewReader(buf.Bytes()),
-	}); err != nil {
-		return err
+	// Upload input parameters
+	upParams := &s3manager.UploadInput{
+		Bucket: &config.s3Bucket,
+		Key:    &key,
+		Body:   &buf,
 	}
-	return nil
+
+	// Perform an upload.
+	_, err = uploader.Upload(upParams)
+	return err
+	// return result, err
 }
 
 func (config *S3Storage) PutStream(key string, fp io.Reader) error {
-	config.log.WithFields(logrus.Fields{
-		"bucket": config.bucket,
-		"key":    key,
-	}).Info("putting object")
+	// *s3manager.UploadOutput
 
-	if _, err := config.svc.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket: aws.String(config.bucket),
-		Key:    aws.String(key),
+	// The session the S3 Uploader will use
+	// Specify profile for config and region for requests.
+	s3Session := session.Must(session.NewSessionWithOptions(session.Options{
+		Config: aws.Config{Region: aws.String(config.s3Region)},
+	}))
+
+	// Create an uploader with the session and default options.
+	uploader := s3manager.NewUploader(s3Session)
+
+	// Upload input parameters
+	upParams := &s3manager.UploadInput{
+		Bucket: &config.s3Bucket,
+		Key:    &key,
 		Body:   fp,
-	}); err != nil {
-		return err
 	}
-	return nil
+
+	// Perform an upload.
+	_, err := uploader.Upload(upParams)
+	return err
+}
+
+func (config *S3Storage) GetDriverName() string {
+	return config.driverName
 }
