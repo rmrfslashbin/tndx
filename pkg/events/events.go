@@ -1,11 +1,12 @@
 package events
 
 import (
+	"context"
 	"os"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/eventbridge"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/sirupsen/logrus"
 )
 
@@ -13,9 +14,10 @@ type Option func(config *Config)
 
 // Configuration structure.
 type Config struct {
-	region string
-	log    *logrus.Logger
-	svc    *eventbridge.EventBridge
+	region  string
+	profile string
+	log     *logrus.Logger
+	svc     *eventbridge.Client
 }
 
 func NewEvents(opts ...func(*Config)) *Config {
@@ -30,9 +32,26 @@ func NewEvents(opts ...func(*Config)) *Config {
 		cfg.region = os.Getenv("AWS_REGION")
 	}
 
-	cfg.svc = eventbridge.New(session.Must(session.NewSession()), aws.NewConfig().WithRegion(cfg.region))
+	c, err := config.LoadDefaultConfig(context.TODO(), func(o *config.LoadOptions) error {
+		o.Region = cfg.region
+		if cfg.profile != "" {
+			o.SharedConfigProfile = cfg.profile
+		}
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	cfg.svc = eventbridge.NewFromConfig(c)
 
 	return cfg
+}
+
+func SetProfile(profile string) Option {
+	return func(config *Config) {
+		config.profile = profile
+	}
 }
 
 func SetRegion(region string) Option {
@@ -48,20 +67,21 @@ func SetLogger(log *logrus.Logger) Option {
 }
 
 func (config *Config) List() (*eventbridge.ListRulesOutput, error) {
-	return config.svc.ListRules(&eventbridge.ListRulesInput{
+	return config.svc.ListRules(context.TODO(), &eventbridge.ListRulesInput{
 		NamePrefix: aws.String("tndx-"),
 	})
+
 }
 
 func (config *Config) Disable(ruleName *string) error {
-	_, err := config.svc.DisableRule(&eventbridge.DisableRuleInput{
+	_, err := config.svc.DisableRule(context.TODO(), &eventbridge.DisableRuleInput{
 		Name: ruleName,
 	})
 	return err
 }
 
 func (config *Config) Enable(ruleName *string) error {
-	_, err := config.svc.EnableRule(&eventbridge.EnableRuleInput{
+	_, err := config.svc.EnableRule(context.TODO(), &eventbridge.EnableRuleInput{
 		Name: ruleName,
 	})
 	return err

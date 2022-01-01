@@ -77,6 +77,8 @@ github.com/aws/aws-sdk-go-v2/service/dynamodb v1.10.0 h1:jzvWaPf99rIjqEBxh9uGKxt
 github.com/aws/aws-sdk-go-v2/service/dynamodb v1.10.0/go.mod h1:ELltfl9ri0n4sZ/VjPZBgemNMd9mYIpCAuZhc7NP7l4=
 github.com/aws/aws-sdk-go-v2/service/dynamodbstreams v1.8.1 h1:AQurjazY9KPUxvq4EBN9Q3iWGaDrcqfpfSWtkP0Qy+g=
 github.com/aws/aws-sdk-go-v2/service/dynamodbstreams v1.8.1/go.mod h1:RiesWyLiePOOwyT5ySDupQosvbG+OTMv9pws/EhDu4U=
+github.com/aws/aws-sdk-go-v2/service/eventbridge v1.11.0 h1:ti8PSP8ax7CA3i/rB/Sq6L0rR2nkbSseaikKpAdhnCw=
+github.com/aws/aws-sdk-go-v2/service/eventbridge v1.11.0/go.mod h1:PZvzyhaw+cfXHg/NIqx3baBRm3sObxDJEJb0egTMngc=
 github.com/aws/aws-sdk-go-v2/service/firehose v1.10.2 h1:tCSM520YEKbVO3NcX0Mcnqk3rhPNfD4D/vFucbqeVcM=
 github.com/aws/aws-sdk-go-v2/service/firehose v1.10.2/go.mod h1:fJeZ4uxhD+vGcNCE4W7onN/AjAuTcT83Cv/7gH4UjUk=
 github.com/aws/aws-sdk-go-v2/service/glue v1.17.0 h1:yHAqlJ0vYuv22CfDdJbz3jovh6OmzGTcOFhkWxAa18I=

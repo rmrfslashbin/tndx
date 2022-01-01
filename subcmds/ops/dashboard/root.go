@@ -183,7 +183,7 @@ func run() {
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.Debug)
 		fmt.Fprintln(w, "Event\tDescription\tRate\tStatus")
 		for _, rule := range rules.Rules {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", *rule.Name, *rule.Description, *rule.ScheduleExpression, *rule.State)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", *rule.Name, *rule.Description, *rule.ScheduleExpression, rule.State)
 		}
 		w.Flush()
 		fmt.Println()

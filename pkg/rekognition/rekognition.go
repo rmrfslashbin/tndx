@@ -21,9 +21,10 @@ type Option func(config *Config)
 
 // Configuration structure.
 type Config struct {
-	region string
-	log    *logrus.Logger
-	svc    *rekognition.Client
+	region  string
+	profile string
+	log     *logrus.Logger
+	svc     *rekognition.Client
 }
 
 func NewImageProcessor(opts ...func(*Config)) *Config {
@@ -40,6 +41,9 @@ func NewImageProcessor(opts ...func(*Config)) *Config {
 
 	c, err := config.LoadDefaultConfig(context.TODO(), func(o *config.LoadOptions) error {
 		o.Region = cfg.region
+		if cfg.profile != "" {
+			o.SharedConfigProfile = cfg.profile
+		}
 		return nil
 	})
 	if err != nil {
@@ -47,6 +51,12 @@ func NewImageProcessor(opts ...func(*Config)) *Config {
 	}
 	cfg.svc = rekognition.NewFromConfig(c)
 	return cfg
+}
+
+func SetProfile(profile string) Option {
+	return func(config *Config) {
+		config.profile = profile
+	}
 }
 
 func SetRegion(region string) Option {

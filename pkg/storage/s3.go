@@ -3,57 +3,73 @@ package storage
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"io"
+	"log"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 type S3Option func(c *S3Storage)
 
 type S3Storage struct {
 	driverName string
-	s3Bucket   string
-	s3Region   string
+	bucket     string
+	region     string
+	profile    string
+	svc        *s3.Client
 }
 
 func NewS3Storage(opts ...func(*S3Storage)) *S3Storage {
-	config := &S3Storage{}
-	config.driverName = "S3"
+	cfg := &S3Storage{}
+	cfg.driverName = "S3"
 
 	// apply the list of options to Config
 	for _, opt := range opts {
-		opt(config)
+		opt(cfg)
 	}
-	return config
+
+	if cfg.region == "" {
+		log.Fatal("region is required")
+	}
+
+	c, err := config.LoadDefaultConfig(context.TODO(), func(o *config.LoadOptions) error {
+		o.Region = cfg.region
+		if cfg.profile != "" {
+			o.SharedConfigProfile = cfg.profile
+		}
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	cfg.svc = s3.NewFromConfig(c)
+
+	return cfg
 }
 
-func SetS3Bucket(s3Bucket string) S3Option {
+func SetProfile(profile string) S3Option {
 	return func(config *S3Storage) {
-		config.s3Bucket = s3Bucket
+		config.profile = profile
 	}
 }
 
-func SetS3Region(s3Region string) S3Option {
+func SetS3Bucket(bucket string) S3Option {
 	return func(config *S3Storage) {
-		config.s3Region = s3Region
+		config.bucket = bucket
 	}
 }
 
-// PutObject uploads data to an S3 bucket.
+func SetS3Region(region string) S3Option {
+	return func(config *S3Storage) {
+		config.region = region
+	}
+}
+
 func (config *S3Storage) Put(key string, body []byte) error {
-	// *s3manager.UploadOutput
-
-	// The session the S3 Uploader will use
-	// Specify profile for config and region for requests.
-	s3Session := session.Must(session.NewSessionWithOptions(session.Options{
-		Config: aws.Config{Region: aws.String(config.s3Region)},
-	}))
-
-	// Create an uploader with the session and default options.
-	uploader := s3manager.NewUploader(s3Session)
-
 	// gzip data
 	var buf bytes.Buffer
 	zw := gzip.NewWriter(&buf)
@@ -70,43 +86,23 @@ func (config *S3Storage) Put(key string, body []byte) error {
 	// Append ".gz" to the key (filename).
 	key = key + ".gz"
 
-	// Upload input parameters
-	upParams := &s3manager.UploadInput{
-		Bucket: &config.s3Bucket,
-		Key:    &key,
-		Body:   &buf,
+	if _, err := config.svc.PutObject(context.TODO(), &s3.PutObjectInput{
+		Bucket: aws.String(config.bucket),
+		Key:    aws.String(key),
+		Body:   bytes.NewReader(buf.Bytes()),
+	}); err != nil {
+		return err
 	}
-
-	// Perform an upload.
-	_, err = uploader.Upload(upParams)
-	return err
-	// return result, err
+	return nil
 }
 
 func (config *S3Storage) PutStream(key string, fp io.Reader) error {
-	// *s3manager.UploadOutput
-
-	// The session the S3 Uploader will use
-	// Specify profile for config and region for requests.
-	s3Session := session.Must(session.NewSessionWithOptions(session.Options{
-		Config: aws.Config{Region: aws.String(config.s3Region)},
-	}))
-
-	// Create an uploader with the session and default options.
-	uploader := s3manager.NewUploader(s3Session)
-
-	// Upload input parameters
-	upParams := &s3manager.UploadInput{
-		Bucket: &config.s3Bucket,
-		Key:    &key,
+	if _, err := config.svc.PutObject(context.TODO(), &s3.PutObjectInput{
+		Bucket: aws.String(config.bucket),
+		Key:    aws.String(key),
 		Body:   fp,
+	}); err != nil {
+		return err
 	}
-
-	// Perform an upload.
-	_, err := uploader.Upload(upParams)
-	return err
-}
-
-func (config *S3Storage) GetDriverName() string {
-	return config.driverName
+	return nil
 }
