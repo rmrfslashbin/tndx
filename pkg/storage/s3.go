@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/sirupsen/logrus"
 )
 
 type S3Option func(c *S3Storage)
@@ -19,6 +20,7 @@ type S3Storage struct {
 	bucket     string
 	region     string
 	profile    string
+	log        *logrus.Logger
 	svc        *s3.Client
 }
 
@@ -49,6 +51,12 @@ func NewS3Storage(opts ...func(*S3Storage)) *S3Storage {
 	cfg.svc = s3.NewFromConfig(c)
 
 	return cfg
+}
+
+func SetLogger(logger *logrus.Logger) S3Option {
+	return func(config *S3Storage) {
+		config.log = logger
+	}
 }
 
 func SetProfile(profile string) S3Option {
@@ -86,6 +94,11 @@ func (config *S3Storage) Put(key string, body []byte) error {
 	// Append ".gz" to the key (filename).
 	key = key + ".gz"
 
+	config.log.WithFields(logrus.Fields{
+		"bucket": config.bucket,
+		"key":    key,
+	}).Info("putting object")
+
 	if _, err := config.svc.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String(config.bucket),
 		Key:    aws.String(key),
@@ -97,6 +110,11 @@ func (config *S3Storage) Put(key string, body []byte) error {
 }
 
 func (config *S3Storage) PutStream(key string, fp io.Reader) error {
+	config.log.WithFields(logrus.Fields{
+		"bucket": config.bucket,
+		"key":    key,
+	}).Info("putting object")
+
 	if _, err := config.svc.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String(config.bucket),
 		Key:    aws.String(key),

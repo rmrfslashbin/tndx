@@ -819,6 +819,24 @@ Resources:
             Resource:
               - !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/d401588e-f306-4b09-bdcb-f0fb4819f752
               - !Sub arn:aws:s3:::${S3Bucket}
+          - Effect: Allow
+            Action:
+              - ssm:GetParameters
+            Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/tndx/${ParamInstanceName}/*"
+          - Effect: Allow
+            Action:
+              - sqs:GetQueueAttributes
+            Resource:
+              - !GetAtt SQSTndxRunner.Arn
+          - Effect: Allow
+            Action:
+              - events:ListRules
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - glue:GetCrawler
+            Resource:
+              - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:crawler/${GlueCrawlerTweets}
 
   PolicyTndxS3Access:
     Type: "AWS::IAM::Policy"

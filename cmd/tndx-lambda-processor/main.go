@@ -171,6 +171,7 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 		svc.storage = storage.NewS3Storage(
 			storage.SetS3Bucket(outputs.Params[bootstrap.S3Bucket].(string)),
 			storage.SetS3Region(aws_region),
+			storage.SetLogger(log),
 		)
 
 		svc.twitterClient = service.New(

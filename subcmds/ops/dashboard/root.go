@@ -138,17 +138,20 @@ func setup() {
 	e = events.NewEvents(
 		events.SetLogger(log),
 		events.SetRegion(aws_region),
+		events.SetProfile(aws_profile),
 	)
 
 	q = queue.NewSQS(
 		queue.SetLogger(log),
 		queue.SetRegion(aws_region),
+		queue.SetProfile(aws_profile),
 		queue.SetSQSURL(outputs.Params[sqs_queue_url].(string)),
 	)
 
 	c = glue.NewCrawler(
 		glue.SetLogger(log),
 		glue.SetRegion(aws_region),
+		glue.SetProfile(aws_profile),
 		glue.SetCrawlerName("tndx-rmrfslashbin-tweets"),
 	)
 }
