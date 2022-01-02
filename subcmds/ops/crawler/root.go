@@ -112,7 +112,7 @@ func setup() {
 		log.WithFields(logrus.Fields{
 			"path":  flags.dotenvPath,
 			"error": err,
-		}).Fatal("unalbe to load dotenv")
+		}).Fatal("unable to load dotenv")
 	}
 
 	viper.SetConfigFile(flags.dotenvPath)
