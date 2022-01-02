@@ -17,6 +17,15 @@ func FixTwitterTime(timeStr string) (string, error) {
 	}
 }
 
+func FixTwitterTimeRFC3339(timeStr string) (string, error) {
+	const layout = "Mon Jan 2 15:04:05 -0700 2006"
+	if t, err := time.Parse(layout, timeStr); err != nil {
+		return "<error>", err
+	} else {
+		return t.Format(time.RFC3339), nil
+	}
+}
+
 // GetUser returns a Twitter user's details.
 func (config *Config) GetUser(queryParams *QueryParams) (*twitter.User, *http.Response, error) {
 	// Connect to the Twitter API and fetch the requested user.
@@ -96,4 +105,12 @@ func (c *Config) GetUserTimeline(queryParams *QueryParams) ([]twitter.Tweet, *ht
 		}
 	}
 	return tweets, resp, err
+}
+
+func (c *Config) LookupTweets(ids []int64) ([]twitter.Tweet, *http.Response, error) {
+	return c.client.Statuses.Lookup(ids, nil)
+}
+
+func (c *Config) LookupUsers(lookupParams *twitter.UserLookupParams) ([]twitter.User, *http.Response, error) {
+	return c.client.Users.Lookup(lookupParams)
 }

@@ -1,11 +1,12 @@
-package events
+package tweets
 
 import (
 	"os"
 	"path"
 
-	"github.com/rmrfslashbin/tndx/pkg/events"
+	"github.com/rmrfslashbin/tndx/pkg/service"
 	"github.com/rmrfslashbin/tndx/pkg/ssmparams"
+	"github.com/rmrfslashbin/tndx/subcmds/tndx/tweets/timeline"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -15,17 +16,23 @@ import (
 type Flags struct {
 	loglevel   string
 	dotenvPath string
-	ruleName   string
+	tweetids   []int64
+	json       bool
+	yaml       bool
+}
+
+type Services struct {
+	twitter *service.Config
 }
 
 var (
-	flags Flags
+	flags *Flags
 	log   *logrus.Logger
-	evnts *events.Config
+	svc   *Services
 
 	// rootCmd is the Viper root command
 	RootCmd = &cobra.Command{
-		Use: "events",
+		Use: "tweets",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			// Set the log level
 			switch flags.loglevel {
@@ -46,36 +53,24 @@ var (
 		},
 	}
 
-	cmdList = &cobra.Command{
-		Use:   "list",
-		Short: "list event rules",
+	cmdPing = &cobra.Command{
+		Use:   "ping",
+		Short: "ping one or more tweets",
 		Run: func(cmd *cobra.Command, args []string) {
 			setup()
-			if err := runEventsList(); err != nil {
+			if err := runTweetsPing(); err != nil {
 				log.Fatal(err)
 				os.Exit(1)
 			}
 		},
 	}
 
-	cmdDisable = &cobra.Command{
-		Use:   "disable",
-		Short: "disable event rule",
+	cmdGet = &cobra.Command{
+		Use:   "get",
+		Short: "gets one or more live tweet",
 		Run: func(cmd *cobra.Command, args []string) {
 			setup()
-			if err := runEventDisable(); err != nil {
-				log.Fatal(err)
-				os.Exit(1)
-			}
-		},
-	}
-
-	cmdEnable = &cobra.Command{
-		Use:   "enable",
-		Short: "enable event rule",
-		Run: func(cmd *cobra.Command, args []string) {
-			setup()
-			if err := runEventEnable(); err != nil {
+			if err := runTweetsGet(); err != nil {
 				log.Fatal(err)
 				os.Exit(1)
 			}
@@ -84,7 +79,8 @@ var (
 )
 
 func init() {
-	flags = Flags{}
+	flags = &Flags{}
+	svc = &Services{}
 	log = logrus.New()
 	log.SetLevel(logrus.InfoLevel)
 	log.SetFormatter(&logrus.TextFormatter{
@@ -94,16 +90,18 @@ func init() {
 	RootCmd.PersistentFlags().StringVarP(&flags.loglevel, "loglevel", "", "info", "[error|warn|info|debug|trace]")
 	RootCmd.PersistentFlags().StringVarP(&flags.dotenvPath, "dotenv", "", "./.env", "dotenv path")
 
-	cmdDisable.Flags().StringVarP(&flags.ruleName, "rule", "", "", "rule name")
-	cmdDisable.MarkFlagRequired("rule")
+	cmdPing.Flags().Int64SliceVarP(&flags.tweetids, "tweetid", "t", []int64{}, "tweet id")
+	cmdPing.MarkFlagRequired("tweetid")
 
-	cmdEnable.Flags().StringVarP(&flags.ruleName, "rule", "", "", "rule name")
-	cmdEnable.MarkFlagRequired("rule")
+	cmdGet.Flags().Int64SliceVarP(&flags.tweetids, "tweetid", "t", []int64{}, "tweet id")
+	cmdGet.Flags().BoolVarP(&flags.json, "json", "j", false, "output in json format")
+	cmdGet.Flags().BoolVarP(&flags.yaml, "yaml", "y", false, "output in yaml format")
+	cmdGet.MarkFlagRequired("tweetid")
 
 	RootCmd.AddCommand(
-		cmdList,
-		cmdDisable,
-		cmdEnable,
+		cmdPing,
+		cmdGet,
+		timeline.RootCmd,
 	)
 }
 
@@ -125,19 +123,11 @@ func setup() {
 	}
 
 	aws_region := viper.GetString("AWS_REGION")
-	aws_profile := viper.GetString("AWS_PROFILE")
-	ddb_table_prefix := viper.GetString("DDB_TABLE_PERFIX")
 	twitter_api_key := viper.GetString("TWITTER_API_KEY")
 	twitter_api_secret := viper.GetString("TWITTER_API_SECRET")
 
 	if aws_region == "" {
 		log.Fatal("AWS_REGION not set")
-	}
-	if aws_profile == "" {
-		log.Fatal("AWS_PROFILE not set")
-	}
-	if ddb_table_prefix == "" {
-		log.Fatal("DDB_TABLE_PERFIX not set")
 	}
 	if twitter_api_key == "" {
 		log.Fatal("TWITTER_API_KEY not set")
@@ -148,30 +138,43 @@ func setup() {
 
 	params := ssmparams.NewSSMParams(
 		ssmparams.SetRegion(aws_region),
-		ssmparams.SetProfile(aws_profile),
 		ssmparams.SetLogger(log),
 	)
 
 	outputs, err := params.GetParams([]string{
-		ddb_table_prefix,
 		twitter_api_key,
 		twitter_api_secret,
 	})
 
 	if err != nil {
 		log.WithFields(logrus.Fields{
-			"error": err,
-		}).Fatal("failed to get params")
+			"action": "getParams",
+			"error":  err.Error(),
+		}).Fatal("error getting parameters.")
 	}
 
 	if len(outputs.InvalidParameters) > 0 {
 		log.WithFields(logrus.Fields{
-			"InvalidParameters": outputs.InvalidParameters,
+			"invalid_parameters": outputs.InvalidParameters,
 		}).Fatal("invalid parameters")
 	}
 
-	evnts = events.NewEvents(
-		events.SetLogger(log),
-		events.SetRegion(aws_region),
+	svc.twitter = service.New(
+		service.SetConsumerKey(outputs.Params[twitter_api_key].(string)),
+		service.SetConsumerSecret(outputs.Params[twitter_api_secret].(string)),
+		service.SetLogger(log),
 	)
+
+}
+
+func DedupInt64Slice(intSlice []int64) []int64 {
+	keys := make(map[int64]bool)
+	list := []int64{}
+	for _, entry := range intSlice {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
 }
