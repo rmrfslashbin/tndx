@@ -207,11 +207,11 @@ func setup() {
 	)
 
 	bootstrap = &queue.Bootstrap{
-		DDBTablePrefix:   outputs.Params[ddb_table_prefix].(string),
-		DeliveryStream:   outputs.Params[tweet_delivery_stream].(string),
-		SQSRunnerURL:     outputs.Params[sqs_queue_url].(string),
-		S3Bucket:         outputs.Params[s3_bucket].(string),
-		TwitterAPIKey:    outputs.Params[twitter_api_key].(string),
-		TwitterAPISecret: outputs.Params[twitter_api_secret].(string),
+		DDBTablePrefix:   ddb_table_prefix,
+		DeliveryStream:   tweet_delivery_stream,
+		SQSRunnerURL:     sqs_queue_url,
+		S3Bucket:         s3_bucket,
+		TwitterAPIKey:    twitter_api_key,
+		TwitterAPISecret: twitter_api_secret,
 	}
 }
