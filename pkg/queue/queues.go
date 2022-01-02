@@ -137,3 +137,13 @@ func (config *Config) GetAttribs() (map[string]string, error) {
 		return ret.Attributes, nil
 	}
 }
+
+func (config *Config) Purge() error {
+	message := &sqs.PurgeQueueInput{
+		QueueUrl: aws.String(config.sqsQueueURL),
+	}
+	if _, err := config.sqs.PurgeQueue(context.TODO(), message); err != nil {
+		return err
+	}
+	return nil
+}

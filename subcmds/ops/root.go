@@ -4,6 +4,7 @@ import (
 	"github.com/rmrfslashbin/tndx/subcmds/ops/crawler"
 	"github.com/rmrfslashbin/tndx/subcmds/ops/dashboard"
 	"github.com/rmrfslashbin/tndx/subcmds/ops/events"
+	"github.com/rmrfslashbin/tndx/subcmds/ops/queue"
 	"github.com/rmrfslashbin/tndx/subcmds/ops/runner"
 	"github.com/spf13/cobra"
 )
@@ -21,5 +22,6 @@ func init() {
 		dashboard.RootCmd,
 		crawler.RootCmd,
 		runner.RootCmd,
+		queue.RootCmd,
 	)
 }
