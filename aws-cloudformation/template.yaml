@@ -77,6 +77,8 @@ Resources:
           KeyType: HASH
         - AttributeName: TweetID
           KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       Tags:
         - Key: "Environment"
           Value: { Ref: ParamEnvironment }
@@ -100,6 +102,8 @@ Resources:
           KeyType: HASH
         - AttributeName: FollowerID
           KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       Tags:
         - Key: "Environment"
           Value: { Ref: ParamEnvironment }
@@ -123,6 +127,8 @@ Resources:
           KeyType: HASH
         - AttributeName: FriendID
           KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       Tags:
         - Key: "Environment"
           Value: { Ref: ParamEnvironment }
@@ -157,6 +163,8 @@ Resources:
               KeyType: RANGE
           Projection:
             ProjectionType: KEYS_ONLY
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       Tags:
         - Key: "Environment"
           Value: { Ref: ParamEnvironment }
@@ -180,6 +188,8 @@ Resources:
           KeyType: HASH
         - AttributeName: Domain
           KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       Tags:
         - Key: "Environment"
           Value: { Ref: ParamEnvironment }
@@ -203,6 +213,8 @@ Resources:
           KeyType: HASH
         - AttributeName: UserID
           KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       Tags:
         - Key: "Environment"
           Value: { Ref: ParamEnvironment }
