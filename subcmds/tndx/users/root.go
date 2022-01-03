@@ -82,7 +82,7 @@ func init() {
 	})
 
 	RootCmd.PersistentFlags().StringVarP(&flags.loglevel, "loglevel", "", "info", "[error|warn|info|debug|trace]")
-	RootCmd.PersistentFlags().StringVarP(&flags.dotenvPath, "dotenv", "", "./.env", "dotenv path")
+	RootCmd.PersistentFlags().StringVarP(&flags.dotenvPath, "dotenv", "", "", "dotenv path")
 
 	cmdGet.Flags().Int64SliceVarP(&flags.userids, "userid", "u", []int64{}, "user id")
 	cmdGet.Flags().StringSliceVarP(&flags.screenname, "screenname", "s", []string{}, "screen name")
@@ -96,15 +96,29 @@ func init() {
 }
 
 func setup() {
-	flags.dotenvPath = path.Clean(flags.dotenvPath)
-	if _, err := os.Stat(flags.dotenvPath); err != nil {
-		log.WithFields(logrus.Fields{
-			"path":  flags.dotenvPath,
-			"error": err,
-		}).Fatal("unable to load dotenv")
+	if flags.dotenvPath == "" {
+		// get platform specific user config directory
+		configHome, err := os.UserConfigDir()
+		if err != nil {
+			log.WithFields(logrus.Fields{
+				"error": err,
+			}).Fatal("could not get user config directory and dotenv file not set")
+		}
+		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
+		viper.AddConfigPath(path.Join(configHome, "tndx"))
+		viper.AddConfigPath(".")
+	} else {
+		flags.dotenvPath = path.Clean(flags.dotenvPath)
+		viper.SetConfigFile(flags.dotenvPath)
+		if _, err := os.Stat(flags.dotenvPath); err != nil {
+			log.WithFields(logrus.Fields{
+				"path":  flags.dotenvPath,
+				"error": err,
+			}).Fatal("unable to load dotenv")
+		}
 	}
 
-	viper.SetConfigFile(flags.dotenvPath)
 	if err := viper.ReadInConfig(); err != nil {
 		log.WithFields(logrus.Fields{
 			"path": flags.dotenvPath,
@@ -112,20 +126,20 @@ func setup() {
 		}).Fatal("failed to read dotenv file")
 	}
 
-	aws_region := viper.GetString("AWS_REGION")
-	twitter_api_key := viper.GetString("TWITTER_API_KEY")
-	twitter_api_secret := viper.GetString("TWITTER_API_SECRET")
+	aws_region := viper.GetString("AwsRegion")
+	twitter_api_key := viper.GetString("TwitterApiKey")
+	twitter_api_secret := viper.GetString("TwitterApiSecret")
 
 	if aws_region == "" {
-		log.Fatal("AWS_REGION not set")
-	}
-	if twitter_api_key == "" {
-		log.Fatal("TWITTER_API_KEY not set")
-	}
-	if twitter_api_secret == "" {
-		log.Fatal("TWITTER_API_SECRET not set")
+		log.Fatal("AwsRegion not set in yaml config file")
 	}
 
+	if twitter_api_key == "" {
+		log.Fatal("TwitterApiKey not set in yaml config file")
+	}
+	if twitter_api_secret == "" {
+		log.Fatal("TwitterApiSecret not set in yaml config file")
+	}
 	params := ssmparams.NewSSMParams(
 		ssmparams.SetRegion(aws_region),
 		ssmparams.SetLogger(log),

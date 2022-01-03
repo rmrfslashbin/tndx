@@ -92,7 +92,7 @@ func init() {
 	})
 
 	RootCmd.PersistentFlags().StringVarP(&flags.loglevel, "loglevel", "", "info", "[error|warn|info|debug|trace]")
-	RootCmd.PersistentFlags().StringVarP(&flags.dotenvPath, "dotenv", "", "./.env", "dotenv path")
+	RootCmd.PersistentFlags().StringVarP(&flags.dotenvPath, "dotenv", "", "", "dotenv path")
 
 	cmdDisable.Flags().StringVarP(&flags.ruleName, "rule", "", "", "rule name")
 	cmdDisable.MarkFlagRequired("rule")
@@ -108,15 +108,29 @@ func init() {
 }
 
 func setup() {
-	flags.dotenvPath = path.Clean(flags.dotenvPath)
-	if _, err := os.Stat(flags.dotenvPath); err != nil {
-		log.WithFields(logrus.Fields{
-			"path":  flags.dotenvPath,
-			"error": err,
-		}).Fatal("unable to load dotenv")
+	if flags.dotenvPath == "" {
+		// get platform specific user config directory
+		configHome, err := os.UserConfigDir()
+		if err != nil {
+			log.WithFields(logrus.Fields{
+				"error": err,
+			}).Fatal("could not get user config directory and dotenv file not set")
+		}
+		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
+		viper.AddConfigPath(path.Join(configHome, "tndx"))
+		viper.AddConfigPath(".")
+	} else {
+		flags.dotenvPath = path.Clean(flags.dotenvPath)
+		viper.SetConfigFile(flags.dotenvPath)
+		if _, err := os.Stat(flags.dotenvPath); err != nil {
+			log.WithFields(logrus.Fields{
+				"path":  flags.dotenvPath,
+				"error": err,
+			}).Fatal("unable to load dotenv")
+		}
 	}
 
-	viper.SetConfigFile(flags.dotenvPath)
 	if err := viper.ReadInConfig(); err != nil {
 		log.WithFields(logrus.Fields{
 			"path": flags.dotenvPath,
@@ -124,26 +138,30 @@ func setup() {
 		}).Fatal("failed to read dotenv file")
 	}
 
-	aws_region := viper.GetString("AWS_REGION")
-	aws_profile := viper.GetString("AWS_PROFILE")
-	ddb_table_prefix := viper.GetString("DDB_TABLE_PERFIX")
-	twitter_api_key := viper.GetString("TWITTER_API_KEY")
-	twitter_api_secret := viper.GetString("TWITTER_API_SECRET")
+	aws_region := viper.GetString("AwsRegion")
+	aws_profile := viper.GetString("AwsProfile")
+	ddb_table_prefix := viper.GetString("DDBTablePrefix")
+	twitter_api_key := viper.GetString("TwitterApiKey")
+	twitter_api_secret := viper.GetString("TwitterApiSecret")
+	sqs_queue_url := viper.GetString("SQSQueueUrl")
 
 	if aws_region == "" {
-		log.Fatal("AWS_REGION not set")
+		log.Fatal("AwsRegion not set in yaml config file")
 	}
 	if aws_profile == "" {
-		log.Fatal("AWS_PROFILE not set")
+		log.Fatal("AwsProfile not set in yaml config file")
 	}
 	if ddb_table_prefix == "" {
-		log.Fatal("DDB_TABLE_PERFIX not set")
+		log.Fatal("DDBTablePrefix not set in yaml config file")
 	}
 	if twitter_api_key == "" {
-		log.Fatal("TWITTER_API_KEY not set")
+		log.Fatal("TwitterApiKey not set in yaml config file")
 	}
 	if twitter_api_secret == "" {
-		log.Fatal("TWITTER_API_SECRET not set")
+		log.Fatal("TwitterApiSecret not set in yaml config file")
+	}
+	if sqs_queue_url == "" {
+		log.Fatal("SQSQueueUrl not set in yaml config file")
 	}
 
 	params := ssmparams.NewSSMParams(

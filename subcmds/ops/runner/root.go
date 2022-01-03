@@ -67,19 +67,11 @@ var (
 		Short: "list runner entires",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			cmd.Parent().PersistentPreRun(cmd.Parent(), args)
-			if flags.screenname == "" && flags.userid == 0 && !flags.all {
-				cmd.Usage()
-				log.Fatalf("--screenname or --userid must be set if not using --all")
+			if flags.screenname == "" && flags.userid == 0 {
+				flags.all = true
 			}
-
-			if flags.all && flags.screenname != "" || flags.userid != 0 {
-				cmd.Usage()
-				log.Fatalf("--screenname or --userid must not be set if using --all")
-			}
-
-			if flags.runner == "" {
-				cmd.Usage()
-				log.Fatalf("runner must be set")
+			if flags.screenname != "" && flags.userid != 0 {
+				log.Fatalf("can't specify both screenname and userid")
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
@@ -119,11 +111,6 @@ var (
 				cmd.Usage()
 				log.Fatalf("--friends, --followers, --favorites, --timeline, --user, --all or --none must be set")
 			}
-
-			if flags.runner == "" {
-				cmd.Usage()
-				log.Fatalf("runner must be set")
-			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			if err := RunRunnerSet(); err != nil {
@@ -141,11 +128,6 @@ var (
 			if flags.screenname == "" && flags.userid == 0 {
 				cmd.Usage()
 				log.Fatalf("--screenname or --userid must be set")
-			}
-
-			if flags.runner == "" {
-				cmd.Usage()
-				log.Fatalf("runner must be set")
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
@@ -166,12 +148,11 @@ func init() {
 	})
 
 	RootCmd.PersistentFlags().StringVarP(&flags.loglevel, "loglevel", "", "info", "[error|warn|info|debug|trace]")
-	RootCmd.PersistentFlags().StringVarP(&flags.dotenvPath, "dotenv", "", "./.env", "dotenv path")
+	RootCmd.PersistentFlags().StringVarP(&flags.dotenvPath, "dotenv", "", "", "dotenv path")
 	RootCmd.PersistentFlags().StringVarP(&flags.runner, "runner", "", "", "runner")
 
 	cmdList.PersistentFlags().StringVarP(&flags.screenname, "screenname", "", "", "screenname")
 	cmdList.PersistentFlags().Int64VarP(&flags.userid, "userid", "", 0, "userid")
-	cmdList.PersistentFlags().BoolVarP(&flags.all, "all", "", false, "all")
 
 	cmdSet.PersistentFlags().StringVarP(&flags.runner, "runner", "", "", "runner")
 	cmdSet.PersistentFlags().StringVarP(&flags.screenname, "screenname", "", "", "screenname")
@@ -196,15 +177,29 @@ func init() {
 }
 
 func setup() {
-	flags.dotenvPath = path.Clean(flags.dotenvPath)
-	if _, err := os.Stat(flags.dotenvPath); err != nil {
-		log.WithFields(logrus.Fields{
-			"path":  flags.dotenvPath,
-			"error": err,
-		}).Fatal("unable to load dotenv")
+	if flags.dotenvPath == "" {
+		// get platform specific user config directory
+		configHome, err := os.UserConfigDir()
+		if err != nil {
+			log.WithFields(logrus.Fields{
+				"error": err,
+			}).Fatal("could not get user config directory and dotenv file not set")
+		}
+		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
+		viper.AddConfigPath(path.Join(configHome, "tndx"))
+		viper.AddConfigPath(".")
+	} else {
+		flags.dotenvPath = path.Clean(flags.dotenvPath)
+		viper.SetConfigFile(flags.dotenvPath)
+		if _, err := os.Stat(flags.dotenvPath); err != nil {
+			log.WithFields(logrus.Fields{
+				"path":  flags.dotenvPath,
+				"error": err,
+			}).Fatal("unable to load dotenv")
+		}
 	}
 
-	viper.SetConfigFile(flags.dotenvPath)
 	if err := viper.ReadInConfig(); err != nil {
 		log.WithFields(logrus.Fields{
 			"path": flags.dotenvPath,
@@ -212,26 +207,26 @@ func setup() {
 		}).Fatal("failed to read dotenv file")
 	}
 
-	aws_region := viper.GetString("AWS_REGION")
-	aws_profile := viper.GetString("AWS_PROFILE")
-	ddb_table_prefix := viper.GetString("DDB_TABLE_PERFIX")
-	twitter_api_key := viper.GetString("TWITTER_API_KEY")
-	twitter_api_secret := viper.GetString("TWITTER_API_SECRET")
+	aws_region := viper.GetString("AwsRegion")
+	aws_profile := viper.GetString("AwsProfile")
+	ddb_table_prefix := viper.GetString("DDBTablePrefix")
+	twitter_api_key := viper.GetString("TwitterApiKey")
+	twitter_api_secret := viper.GetString("TwitterApiSecret")
 
 	if aws_region == "" {
-		log.Fatal("AWS_REGION not set")
+		log.Fatal("AwsRegion not set in yaml config file")
 	}
 	if aws_profile == "" {
-		log.Fatal("AWS_PROFILE not set")
+		log.Fatal("AwsProfile not set in yaml config file")
 	}
 	if ddb_table_prefix == "" {
-		log.Fatal("DDB_TABLE_PERFIX not set")
+		log.Fatal("DDBTablePrefix not set in yaml config file")
 	}
 	if twitter_api_key == "" {
-		log.Fatal("TWITTER_API_KEY not set")
+		log.Fatal("TwitterApiKey not set in yaml config file")
 	}
 	if twitter_api_secret == "" {
-		log.Fatal("TWITTER_API_SECRET not set")
+		log.Fatal("TwitterApiSecret not set in yaml config file")
 	}
 
 	// Set up a new ssmparams client
@@ -271,4 +266,12 @@ func setup() {
 		database.SetDDBTablePrefix(outputs.Parameters[ddb_table_prefix].(string)),
 		database.SetDDBRegion(aws_region),
 	)
+
+	if flags.runner == "" {
+		runner := viper.GetString("Runner")
+		if runner == "" {
+			log.Fatal("Runner not set in yaml config file")
+		}
+		flags.runner = runner
+	}
 }

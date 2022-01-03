@@ -100,7 +100,7 @@ func init() {
 	})
 
 	RootCmd.PersistentFlags().StringVarP(&flags.loglevel, "loglevel", "", "info", "[error|warn|info|debug|trace]")
-	RootCmd.PersistentFlags().StringVarP(&flags.dotenvPath, "dotenv", "", "./.env", "dotenv path")
+	RootCmd.PersistentFlags().StringVarP(&flags.dotenvPath, "dotenv", "", "", "dotenv path")
 
 	cmdIngest.Flags().Int64VarP(&flags.userid, "userid", "u", 0, "user id")
 	cmdIngest.Flags().Int64VarP(&flags.sinceid, "sinceid", "s", 0, "since id")
@@ -115,15 +115,29 @@ func init() {
 }
 
 func setup() {
-	flags.dotenvPath = path.Clean(flags.dotenvPath)
-	if _, err := os.Stat(flags.dotenvPath); err != nil {
-		log.WithFields(logrus.Fields{
-			"path":  flags.dotenvPath,
-			"error": err,
-		}).Fatal("unable to load dotenv")
+	if flags.dotenvPath == "" {
+		// get platform specific user config directory
+		configHome, err := os.UserConfigDir()
+		if err != nil {
+			log.WithFields(logrus.Fields{
+				"error": err,
+			}).Fatal("could not get user config directory and dotenv file not set")
+		}
+		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
+		viper.AddConfigPath(path.Join(configHome, "tndx"))
+		viper.AddConfigPath(".")
+	} else {
+		flags.dotenvPath = path.Clean(flags.dotenvPath)
+		viper.SetConfigFile(flags.dotenvPath)
+		if _, err := os.Stat(flags.dotenvPath); err != nil {
+			log.WithFields(logrus.Fields{
+				"path":  flags.dotenvPath,
+				"error": err,
+			}).Fatal("unable to load dotenv")
+		}
 	}
 
-	viper.SetConfigFile(flags.dotenvPath)
 	if err := viper.ReadInConfig(); err != nil {
 		log.WithFields(logrus.Fields{
 			"path": flags.dotenvPath,
@@ -131,13 +145,14 @@ func setup() {
 		}).Fatal("failed to read dotenv file")
 	}
 
-	aws_region := viper.GetString("AWS_REGION")
-	ddb_table_prefix := viper.GetString("DDB_TABLE_PERFIX")
-	s3_bucket := viper.GetString("S3_BUCKET")
-	sqs_queue_url := viper.GetString("SQS_QUEUE_URL")
-	tweet_delivery_stream := viper.GetString("TWEET_DELIVERY_STREAM")
-	twitter_api_key := viper.GetString("TWITTER_API_KEY")
-	twitter_api_secret := viper.GetString("TWITTER_API_SECRET")
+	aws_region := viper.GetString("AwsRegion")
+	aws_profile := viper.GetString("AwsProfile")
+	ddb_table_prefix := viper.GetString("DDBTablePrefix")
+	s3_bucket := viper.GetString("S3Bucket")
+	sqs_queue_url := viper.GetString("SQSQueueUrl")
+	tweet_delivery_stream := viper.GetString("TweetDeliveryStream")
+	twitter_api_key := viper.GetString("TwitterApiKey")
+	twitter_api_secret := viper.GetString("TwitterApiSecret")
 
 	if aws_region == "" {
 		log.Fatal("AWS_REGION not set")
@@ -197,12 +212,14 @@ func setup() {
 	svc.kinesis = kinesis.NewFirehose(
 		kinesis.SetRegion(aws_region),
 		kinesis.SetLogger(log),
+		kinesis.SetProfile(aws_profile),
 		kinesis.SetDeliveryStream(outputs.Params[tweet_delivery_stream].(string)),
 	)
 
 	svc.queue = queue.NewSQS(
 		queue.SetLogger(log),
 		queue.SetRegion(aws_region),
+		queue.SetProfile(aws_profile),
 		queue.SetSQSURL(outputs.Params[sqs_queue_url].(string)),
 	)
 
