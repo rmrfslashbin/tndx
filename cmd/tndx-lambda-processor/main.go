@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -223,6 +224,23 @@ func handler(ctx context.Context, sqsEvent events.SQSEvent) error {
 				return err
 			}
 
+		case "get_tweet":
+			tweetId, err := strconv.ParseInt(messageBody.TweetID, 10, 64)
+			if err != nil {
+				logrus.WithFields(logrus.Fields{
+					"function": "get_tweet",
+					"error":    err,
+				}).Error("unable to parse tweet id to int64")
+				return err
+			}
+			if err := getTweet(tweetId, bootstrap); err != nil {
+				logrus.WithFields(logrus.Fields{
+					"function": "get_tweet",
+					"error":    err,
+				}).Error("function failed")
+				return err
+			}
+
 		case "timeline":
 			if err := timeline(messageBody.UserID, bootstrap); err != nil {
 				logrus.WithFields(logrus.Fields{
@@ -300,8 +318,9 @@ func favorites(userid int64, bootstrap *queue.Bootstrap) error {
 	)
 	if err != nil {
 		log.WithFields(logrus.Fields{
-			"action":   "favorites",
-			"response": resp.Status,
+			"action":         "favorites",
+			"responseCode":   resp.StatusCode,
+			"responseStatus": resp.Status,
 		}).Error("error getting user's favorites")
 		return err
 	}
@@ -329,6 +348,23 @@ func favorites(userid int64, bootstrap *queue.Bootstrap) error {
 			}
 		}
 
+		// check for quoted_status_id
+		if tweets[t].QuotedStatusIDStr != "" {
+			bootstrap.Function = "get_tweet"
+			if err := svc.queue.SendRunnerMessage(&queue.SendMessage{
+				Bootstrap: bootstrap,
+				Message: &queue.ProcessorMessage{
+					TweetID: tweets[t].QuotedStatusIDStr,
+				},
+			}); err != nil {
+				logrus.WithFields(logrus.Fields{
+					"action":  "favorites::queue::SendRunnerMessage",
+					"error":   err.Error(),
+					"tweetId": tweets[t].ID,
+				}).Error("error sending message to queue")
+			}
+		}
+
 		// Loop through all the media entities
 		for m := range tweets[t].Entities.Media {
 			var url string
@@ -353,7 +389,6 @@ func favorites(userid int64, bootstrap *queue.Bootstrap) error {
 						"userid":  userid,
 						"tweetId": tweets[t].ID,
 					}).Error("error sending message to queue")
-					fmt.Printf("Queued: %s\n", url)
 				}
 			}
 		}
@@ -602,6 +637,87 @@ func friends(userid int64) error {
 	return nil
 }
 
+func getTweet(tweetId int64, bootstrap *queue.Bootstrap) error {
+	tweets, resp, err := svc.twitterClient.LookupTweets([]int64{tweetId})
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			"action":         "timeline::GetTimelineConfig",
+			"responseCode":   resp.StatusCode,
+			"responseStatus": resp.Status,
+			"error":          err.Error(),
+		}).Error("error getting timeline config")
+		return err
+	}
+
+	// Loop through all the tweets.
+	for t := range tweets {
+		log.WithFields(logrus.Fields{
+			"action": "getTweet::LookupTweets",
+			"tweet":  tweets[t],
+		}).Info("base tweet")
+		if data, err := json.Marshal(tweets[t]); err == nil {
+			if opt, err := svc.kinesis.PutRecord(data); err != nil {
+				log.WithFields(logrus.Fields{
+					"error":   err,
+					"tweetId": tweets[t].ID,
+				}).Fatal("failed putting favorite tweet into kinesis")
+			} else {
+				log.WithFields(logrus.Fields{
+					"tweetId":  tweets[t].ID,
+					"recordId": *opt.RecordId,
+				}).Info("put record")
+			}
+		}
+
+		// check for quoted_status_id
+		if tweets[t].QuotedStatusIDStr != "" {
+			bootstrap.Function = "get_tweet"
+			if err := svc.queue.SendRunnerMessage(&queue.SendMessage{
+				Bootstrap: bootstrap,
+				Message: &queue.ProcessorMessage{
+					TweetID: tweets[t].QuotedStatusIDStr,
+				},
+			}); err != nil {
+				logrus.WithFields(logrus.Fields{
+					"action":  "getTweet::queue::SendRunnerMessage",
+					"error":   err.Error(),
+					"tweetId": tweets[t].ID,
+				}).Error("error sending message to queue")
+			}
+		}
+
+		// Loop through all the media entities
+		for m := range tweets[t].Entities.Media {
+			var url string
+			if tweets[t].Entities.Media[m].MediaURLHttps != "" {
+				url = tweets[t].Entities.Media[m].MediaURLHttps
+			} else if tweets[t].Entities.Media[m].MediaURL != "" {
+				url = tweets[t].Entities.Media[m].MediaURL
+			}
+			if url != "" {
+				bootstrap.Function = "entities"
+				if err := svc.queue.SendRunnerMessage(&queue.SendMessage{
+					Bootstrap: bootstrap,
+					Message: &queue.ProcessorMessage{
+						TweetID:   tweets[t].IDStr,
+						EntityURL: url,
+						UserID:    tweets[t].User.ID,
+					},
+				}); err != nil {
+					logrus.WithFields(logrus.Fields{
+						"action":  "timeline::queue::SendMessage",
+						"error":   err.Error(),
+						"userid":  tweets[t].User.ID,
+						"tweetId": tweets[t].ID,
+					}).Error("error sending message to queue")
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 func timeline(userid int64, bootstrap *queue.Bootstrap) error {
 	timelineConfig, err := svc.db.GetTimelineConfig(userid)
 	if err != nil {
@@ -627,8 +743,9 @@ func timeline(userid int64, bootstrap *queue.Bootstrap) error {
 	)
 	if err != nil {
 		log.WithFields(logrus.Fields{
-			"action":   "timeline::GetUserTimeline",
-			"response": resp.Status,
+			"action":         "timeline::GetUserTimeline",
+			"responseCode":   resp.StatusCode,
+			"responseStatus": resp.Status,
 		}).Error("error getting user's timeline")
 		return err
 	}
@@ -657,6 +774,23 @@ func timeline(userid int64, bootstrap *queue.Bootstrap) error {
 			}
 		}
 
+		// check for quoted_status_id
+		if tweets[t].QuotedStatusIDStr != "" {
+			bootstrap.Function = "get_tweet"
+			if err := svc.queue.SendRunnerMessage(&queue.SendMessage{
+				Bootstrap: bootstrap,
+				Message: &queue.ProcessorMessage{
+					TweetID: tweets[t].QuotedStatusIDStr,
+				},
+			}); err != nil {
+				logrus.WithFields(logrus.Fields{
+					"action":  "timeline::queue::SendRunnerMessage",
+					"error":   err.Error(),
+					"tweetId": tweets[t].ID,
+				}).Error("error sending message to queue")
+			}
+		}
+
 		// Loop through all the media entities
 		for m := range tweets[t].Entities.Media {
 			var url string
@@ -681,22 +815,18 @@ func timeline(userid int64, bootstrap *queue.Bootstrap) error {
 						"userid":  userid,
 						"tweetId": tweets[t].ID,
 					}).Error("error sending message to queue")
-					fmt.Printf("Queued: %s\n", url)
 				}
 			}
 		}
 
 		// Calculate the max and min tweet IDs.
 		if tweets[t].ID > upperID {
-			//fmt.Printf("Tweet (%d) > Upper (%d), setting upperID\n", tweets[t].ID, upperID)
 			upperID = tweets[t].ID
 		}
 		if tweets[t].ID < lowerID {
-			//fmt.Printf("Tweet (%d) < Upper (%d), setting lowerID\n", tweets[t].ID, lowerID)
 			lowerID = tweets[t].ID
 		}
 		if lowerID == 0 {
-			//fmt.Printf("lowerID (%d) == 0, setting lowerID to upper ID (%d)\n", lowerID, upperID)
 			lowerID = upperID
 		}
 	}
