@@ -749,6 +749,12 @@ func getTweet(tweetId int64, bootstrap *queue.Bootstrap) error {
 		}
 	}
 
+	logrus.WithFields(logrus.Fields{
+		"action":  "get_tweet::Done!",
+		"tweetId": tweetId,
+		"count":   len(tweets),
+	}).Info("finished getting tweet")
+
 	return nil
 }
 
