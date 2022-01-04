@@ -645,6 +645,18 @@ Resources:
         Application: { Ref: ParamAppName }
         Instance: { Ref: ParamInstanceName }
 
+  ParameterEventsList:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/tndx/${ParamInstanceName}/events/list"
+      Type: StringList
+      Value: !Sub ${EventTndxRunnerFavorites}, ${EventTndxRunnerFollowers}, ${EventTndxRunnerFriends}, ${EventTndxRunnerTimeline}, ${EventTndxRunnerUser}
+      Description: !Sub "tndx ${ParamInstanceName} events list"
+      Tags:
+        Environment: { Ref: ParamEnvironment }
+        Application: { Ref: ParamAppName }
+        Instance: { Ref: ParamInstanceName }
+
   ParameterGlueTweetsCrawlerName:
     Type: AWS::SSM::Parameter
     Properties:
