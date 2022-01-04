@@ -348,6 +348,23 @@ func favorites(userid int64, bootstrap *queue.Bootstrap) error {
 			}
 		}
 
+		// check for RetweetedStatus
+		if tweets[t].RetweetedStatus != nil {
+			bootstrap.Function = "get_tweet"
+			if err := svc.queue.SendRunnerMessage(&queue.SendMessage{
+				Bootstrap: bootstrap,
+				Message: &queue.ProcessorMessage{
+					TweetID: tweets[t].RetweetedStatus.IDStr,
+				},
+			}); err != nil {
+				logrus.WithFields(logrus.Fields{
+					"action":  "timeline::queue::SendRunnerMessage",
+					"error":   err.Error(),
+					"tweetId": tweets[t].ID,
+				}).Error("error sending message to queue")
+			}
+		}
+
 		// check for quoted_status_id
 		if tweets[t].QuotedStatusIDStr != "" {
 			bootstrap.Function = "get_tweet"
@@ -669,6 +686,23 @@ func getTweet(tweetId int64, bootstrap *queue.Bootstrap) error {
 			}
 		}
 
+		// check for RetweetedStatus
+		if tweets[t].RetweetedStatus != nil {
+			bootstrap.Function = "get_tweet"
+			if err := svc.queue.SendRunnerMessage(&queue.SendMessage{
+				Bootstrap: bootstrap,
+				Message: &queue.ProcessorMessage{
+					TweetID: tweets[t].RetweetedStatus.IDStr,
+				},
+			}); err != nil {
+				logrus.WithFields(logrus.Fields{
+					"action":  "timeline::queue::SendRunnerMessage",
+					"error":   err.Error(),
+					"tweetId": tweets[t].ID,
+				}).Error("error sending message to queue")
+			}
+		}
+
 		// check for quoted_status_id
 		if tweets[t].QuotedStatusIDStr != "" {
 			bootstrap.Function = "get_tweet"
@@ -714,6 +748,12 @@ func getTweet(tweetId int64, bootstrap *queue.Bootstrap) error {
 			}
 		}
 	}
+
+	logrus.WithFields(logrus.Fields{
+		"action":  "get_tweet::Done!",
+		"tweetId": tweetId,
+		"count":   len(tweets),
+	}).Info("finished getting tweet")
 
 	return nil
 }
@@ -771,6 +811,23 @@ func timeline(userid int64, bootstrap *queue.Bootstrap) error {
 					"tweetId":  tweets[t].ID,
 					"recordId": *opt.RecordId,
 				}).Info("put record")
+			}
+		}
+
+		// check for RetweetedStatus
+		if tweets[t].RetweetedStatus != nil {
+			bootstrap.Function = "get_tweet"
+			if err := svc.queue.SendRunnerMessage(&queue.SendMessage{
+				Bootstrap: bootstrap,
+				Message: &queue.ProcessorMessage{
+					TweetID: tweets[t].RetweetedStatus.IDStr,
+				},
+			}); err != nil {
+				logrus.WithFields(logrus.Fields{
+					"action":  "timeline::queue::SendRunnerMessage",
+					"error":   err.Error(),
+					"tweetId": tweets[t].ID,
+				}).Error("error sending message to queue")
 			}
 		}
 
