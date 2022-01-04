@@ -3,6 +3,7 @@ package events
 import (
 	"os"
 	"path"
+	"strings"
 
 	"github.com/rmrfslashbin/tndx/pkg/events"
 	"github.com/rmrfslashbin/tndx/pkg/ssmparams"
@@ -16,12 +17,14 @@ type Flags struct {
 	loglevel   string
 	dotenvPath string
 	ruleName   string
+	all        bool
 }
 
 var (
-	flags Flags
-	log   *logrus.Logger
-	evnts *events.Config
+	flags    Flags
+	log      *logrus.Logger
+	evnts    *events.Config
+	ruleList []string
 
 	// rootCmd is the Viper root command
 	RootCmd = &cobra.Command{
@@ -50,7 +53,6 @@ var (
 		Use:   "list",
 		Short: "list event rules",
 		Run: func(cmd *cobra.Command, args []string) {
-			setup()
 			if err := runEventsList(); err != nil {
 				log.Fatal(err)
 				os.Exit(1)
@@ -61,8 +63,13 @@ var (
 	cmdDisable = &cobra.Command{
 		Use:   "disable",
 		Short: "disable event rule",
+		PreRun: func(cmd *cobra.Command, args []string) {
+			if flags.ruleName == "" && !flags.all {
+				log.Fatal("--rule-name or --all must be specified")
+				os.Exit(1)
+			}
+		},
 		Run: func(cmd *cobra.Command, args []string) {
-			setup()
 			if err := runEventDisable(); err != nil {
 				log.Fatal(err)
 				os.Exit(1)
@@ -73,8 +80,13 @@ var (
 	cmdEnable = &cobra.Command{
 		Use:   "enable",
 		Short: "enable event rule",
+		PreRun: func(cmd *cobra.Command, args []string) {
+			if flags.ruleName == "" && !flags.all {
+				log.Fatal("--rule-name or --all must be specified")
+				os.Exit(1)
+			}
+		},
 		Run: func(cmd *cobra.Command, args []string) {
-			setup()
 			if err := runEventEnable(); err != nil {
 				log.Fatal(err)
 				os.Exit(1)
@@ -95,10 +107,10 @@ func init() {
 	RootCmd.PersistentFlags().StringVarP(&flags.dotenvPath, "dotenv", "", "", "dotenv path")
 
 	cmdDisable.Flags().StringVarP(&flags.ruleName, "rule", "", "", "rule name")
-	cmdDisable.MarkFlagRequired("rule")
+	cmdDisable.Flags().BoolVarP(&flags.all, "all", "", false, "disable all rules")
 
 	cmdEnable.Flags().StringVarP(&flags.ruleName, "rule", "", "", "rule name")
-	cmdEnable.MarkFlagRequired("rule")
+	cmdEnable.Flags().BoolVarP(&flags.all, "all", "", false, "disable all rules")
 
 	RootCmd.AddCommand(
 		cmdList,
@@ -140,6 +152,7 @@ func setup() {
 
 	aws_region := viper.GetString("AwsRegion")
 	aws_profile := viper.GetString("AwsProfile")
+	events_list := viper.GetString("EventsList")
 	ddb_table_prefix := viper.GetString("DDBTablePrefix")
 	twitter_api_key := viper.GetString("TwitterApiKey")
 	twitter_api_secret := viper.GetString("TwitterApiSecret")
@@ -153,6 +166,9 @@ func setup() {
 	}
 	if ddb_table_prefix == "" {
 		log.Fatal("DDBTablePrefix not set in yaml config file")
+	}
+	if events_list == "" {
+		log.Fatal("EventsList not set in yaml config file")
 	}
 	if twitter_api_key == "" {
 		log.Fatal("TwitterApiKey not set in yaml config file")
@@ -172,6 +188,7 @@ func setup() {
 
 	outputs, err := params.GetParams([]string{
 		ddb_table_prefix,
+		events_list,
 		twitter_api_key,
 		twitter_api_secret,
 	})
@@ -192,4 +209,12 @@ func setup() {
 		events.SetLogger(log),
 		events.SetRegion(aws_region),
 	)
+
+	ruleParts := strings.Split(outputs.Params[events_list].(string), ",")
+	ruleList = make([]string, len(ruleParts))
+	for i, s := range ruleParts {
+		ruleList[i] = strings.TrimSpace(s)
+	}
+	//spew.Dump(ruleList)
+
 }
