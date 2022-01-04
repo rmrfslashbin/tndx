@@ -215,6 +215,4 @@ func setup() {
 	for i, s := range ruleParts {
 		ruleList[i] = strings.TrimSpace(s)
 	}
-	//spew.Dump(ruleList)
-
 }
