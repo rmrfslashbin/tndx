@@ -45,6 +45,7 @@ func (c *Config) GetUserFavorites(queryParams *QueryParams) ([]twitter.Tweet, *h
 		Count:      queryParams.Count,
 		SinceID:    queryParams.SinceID,
 		MaxID:      queryParams.MaxID,
+		TweetMode:  "extended",
 	})
 	for tweet := range tweets {
 		tweets[tweet].CreatedAt, _ = FixTwitterTime(tweets[tweet].CreatedAt)
@@ -95,6 +96,7 @@ func (c *Config) GetUserTimeline(queryParams *QueryParams) ([]twitter.Tweet, *ht
 		Count:      queryParams.Count,
 		SinceID:    queryParams.SinceID,
 		MaxID:      queryParams.MaxID,
+		TweetMode:  "extended",
 	})
 	for tweet := range tweets {
 		tweets[tweet].CreatedAt, _ = FixTwitterTime(tweets[tweet].CreatedAt)
@@ -108,7 +110,9 @@ func (c *Config) GetUserTimeline(queryParams *QueryParams) ([]twitter.Tweet, *ht
 }
 
 func (c *Config) LookupTweets(ids []int64) ([]twitter.Tweet, *http.Response, error) {
-	return c.client.Statuses.Lookup(ids, nil)
+	return c.client.Statuses.Lookup(ids, &twitter.StatusLookupParams{
+		TweetMode: "extended",
+	})
 }
 
 func (c *Config) LookupUsers(lookupParams *twitter.UserLookupParams) ([]twitter.User, *http.Response, error) {
