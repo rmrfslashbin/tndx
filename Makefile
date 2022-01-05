@@ -7,36 +7,42 @@ aws_profile = us-east-2
 #deploy_bucket = is-us-east-1-deployment
 
 #SHA_CMD := $(shell { command -v sha256sum || command -v shasum; } 2>/dev/null)
+#BUILD_DATE := $(shell echo $(date +%Y-%m-%d-)$(date -d "1970-01-01 UTC $(date +%T)" +%s) )
+
+DATET := $(shell date +%T)
+DATES := $(shell date -d "1970-01-01 UTC $(DATET)" +%s)
+TODAY := $(shell date +%Y-%m-%d-)
+BUILD_DATE := $(TODAY)$(DATES)
 
 build:
+	@echo build date is $(BUILD_DATE)
 	@printf "  building tndx-ops:\n"
 	@printf "    linux  :: arm64"
-	@GOOS=linux GOARCH=arm64 go build -o bin/tndx-ops-linux-arm64 cmd/tndx-ops/main.go
+	@GOOS=linux GOARCH=arm64 go build -ldflags "-X github.com/rmrfslashbin/tndx/subcmds/ops.Version=$(BUILD_DATE)" -o bin/tndx-ops-linux-arm64 cmd/tndx-ops/main.go
 	@printf " done.\n"
 	@printf "    linux  :: amd64"
-	@GOOS=linux GOARCH=amd64 go build -o bin/tndx-ops-linux-amd64 cmd/tndx-ops/main.go
+	@GOOS=linux GOARCH=amd64 go build -ldflags "-X github.com/rmrfslashbin/tndx/subcmds/ops.Version=$(BUILD_DATE)" -o bin/tndx-ops-linux-amd64 cmd/tndx-ops/main.go
 	@printf " done.\n"
 	@printf "    darwin :: amd64"
-	@GOOS=darwin GOARCH=amd64 go build -o bin/tndx-ops-darwin-amd64 cmd/tndx-ops/main.go
+	@GOOS=darwin GOARCH=amd64 go build -ldflags "-X github.com/rmrfslashbin/tndx/subcmds/ops.Version=$(BUILD_DATE)" -o bin/tndx-ops-darwin-amd64 cmd/tndx-ops/main.go
 	@printf " done.\n"
 	@printf "    darwin :: arm64"
-	@GOOS=darwin GOARCH=arm64 go build -o bin/tndx-ops-darwin-arm64 cmd/tndx-ops/main.go
+	@GOOS=darwin GOARCH=arm64 go build -ldflags "-X github.com/rmrfslashbin/tndx/subcmds/ops.Version=$(BUILD_DATE)" -o bin/tndx-ops-darwin-arm64 cmd/tndx-ops/main.go
 	@printf " done.\n"
 
 	@printf "  building tndx:\n"
 	@printf "    linux  :: arm64"
-	@GOOS=linux GOARCH=arm64 go build -o bin/tndx-linux-arm64 cmd/tndx/main.go
+	@GOOS=linux GOARCH=arm64 go build -ldflags "-X github.com/rmrfslashbin/tndx/subcmds/tndx.Version=$(BUILD_DATE)" -o bin/tndx-linux-arm64 cmd/tndx/main.go
 	@printf " done.\n"
 	@printf "    linux  :: amd64"
-	@GOOS=linux GOARCH=amd64 go build -o bin/tndx-linux-amd64 cmd/tndx/main.go
+	@GOOS=linux GOARCH=amd64 go build -ldflags "-X github.com/rmrfslashbin/tndx/subcmds/tndx.Version=$(BUILD_DATE)" -o bin/tndx-linux-amd64 cmd/tndx/main.go
 	@printf " done.\n"
 	@printf "    darwin :: amd64"
-	@GOOS=darwin GOARCH=amd64 go build -o bin/tndx-darwin-amd64 cmd/tndx/main.go
+	@GOOS=darwin GOARCH=amd64 go build -ldflags "-X github.com/rmrfslashbin/tndx/subcmds/tndx.Version=$(BUILD_DATE)" -o bin/tndx-darwin-amd64 cmd/tndx/main.go
 	@printf " done.\n"
 	@printf "    darwin :: arm64"
-	@GOOS=darwin GOARCH=arm64 go build -o bin/tndx-darwin-arm64 cmd/tndx/main.go
+	@GOOS=darwin GOARCH=arm64 go build -ldflags "-X github.com/rmrfslashbin/tndx/subcmds/tndx.Version=$(BUILD_DATE)" -o bin/tndx-darwin-arm64 cmd/tndx/main.go
 	@printf " done.\n"
-
 
 tidy:
 	@echo "Making mod tidy"

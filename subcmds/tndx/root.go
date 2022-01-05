@@ -7,9 +7,10 @@ import (
 )
 
 var (
+	Version string
 	// rootCmd is the Viper root command
 	RootCmd = &cobra.Command{
-		Version: "v2022.01.02-00",
+		Version: Version,
 	}
 )
 
