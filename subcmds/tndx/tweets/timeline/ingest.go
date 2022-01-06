@@ -65,6 +65,23 @@ func runTimelineIngest() error {
 			}
 		}
 
+		// check for RetweetedStatus
+		if tweets[t].RetweetedStatus != nil {
+			bootstrap.Function = "get_tweet"
+			if err := svc.queue.SendRunnerMessage(&queue.SendMessage{
+				Bootstrap: bootstrap,
+				Message: &queue.ProcessorMessage{
+					TweetID: tweets[t].RetweetedStatus.IDStr,
+				},
+			}); err != nil {
+				logrus.WithFields(logrus.Fields{
+					"action":  "timeline::queue::SendRunnerMessage",
+					"error":   err.Error(),
+					"tweetId": tweets[t].ID,
+				}).Error("error sending message to queue")
+			}
+		}
+
 		// Loop through all the media entities
 		for m := range tweets[t].Entities.Media {
 			var url string
