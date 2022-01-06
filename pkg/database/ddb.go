@@ -34,9 +34,10 @@ type DDBDriver struct {
 	db             *dynamodb.Client
 }
 type TweetConfigQuery struct {
-	UserID  int64
-	SinceID int64
-	MaxID   int64
+	UserID     int64
+	SinceID    int64
+	MaxID      int64
+	LastUpdate int64
 }
 
 type CursoredTweetConfigQuery struct {
@@ -45,11 +46,12 @@ type CursoredTweetConfigQuery struct {
 	NextCursor     int64
 }
 type TweetsItem struct {
-	Domain     string `json:"Domain"`
-	UserID     int64  `json:"UserID"`
-	MaxID      int64  `json:"MaxID"`
-	SinceID    int64  `json:"SinceID"`
-	LastUpdate int64  `json:"LastUpdate"`
+	Domain              string    `json:"Domain" yaml:"Domain"`
+	UserID              int64     `json:"UserID" yaml:"UserID"`
+	MaxID               int64     `json:"MaxID" yaml:"MaxID"`
+	SinceID             int64     `json:"SinceID" yaml:"SinceID"`
+	LastUpdate          int64     `json:"LastUpdate" yaml:"LastUpdate"`
+	LastUpdateTimestamp time.Time `json:"LastUpdateTimestamp" yaml:"LastUpdateTimestamp"`
 }
 
 type UserToTweetLink struct {
@@ -68,27 +70,30 @@ type UserToFriendLink struct {
 }
 
 type FavoritesItem struct {
-	Domain     string `json:"Domain"`
-	UserID     int64  `json:"UserID"`
-	MaxID      int64  `json:"MaxID"`
-	SinceID    int64  `json:"SinceID"`
-	LastUpdate int64  `json:"LastUpdate"`
+	Domain              string    `json:"Domain" yaml:"Domain"`
+	UserID              int64     `json:"UserID" yaml:"UserID"`
+	MaxID               int64     `json:"MaxID" yaml:"MaxID"`
+	SinceID             int64     `json:"SinceID" yaml:"SinceID"`
+	LastUpdate          int64     `json:"LastUpdate" yaml:"LastUpdate"`
+	LastUpdateTimestamp time.Time `json:"LastUpdateTimestamp" yaml:"LastUpdateTimestamp"`
 }
 
 type FollowersItem struct {
-	Domain         string `json:"Domain"`
-	UserID         int64  `json:"UserID"`
-	NextCursor     int64  `json:"NextCursor"`
-	PreviousCursor int64  `json:"PreviousCursor"`
-	LastUpdate     int64  `json:"LastUpdate"`
+	Domain              string    `json:"Domain" yaml:"Domain"`
+	UserID              int64     `json:"UserID" yaml:"UserID"`
+	NextCursor          int64     `json:"NextCursor" yaml:"NextCursor"`
+	PreviousCursor      int64     `json:"PreviousCursor" yaml:"PreviousCursor"`
+	LastUpdate          int64     `json:"LastUpdate" yaml:"LastUpdate"`
+	LastUpdateTimestamp time.Time `json:"LastUpdateTimestamp" yaml:"LastUpdateTimestamp"`
 }
 
 type FriendsItem struct {
-	Domain         string `json:"Domain"`
-	UserID         int64  `json:"UserID"`
-	NextCursor     int64  `json:"NextCursor"`
-	PreviousCursor int64  `json:"PreviousCursor"`
-	LastUpdate     int64  `json:"LastUpdate"`
+	Domain              string    `json:"Domain" yaml:"Domain"`
+	UserID              int64     `json:"UserID" yaml:"UserID"`
+	NextCursor          int64     `json:"NextCursor" yaml:"NextCursor"`
+	PreviousCursor      int64     `json:"PreviousCursor" yaml:"PreviousCursor"`
+	LastUpdate          int64     `json:"LastUpdate" yaml:"LastUpdate"`
+	LastUpdateTimestamp time.Time `json:"LastUpdateTimestamp" yaml:"LastUpdateTimestamp"`
 }
 
 type RunnerItem struct {
@@ -214,7 +219,7 @@ func (config *DDBDriver) GetDriverName() string {
 	return config.driverName
 }
 
-func (config *DDBDriver) GetFavoritesConfig(userID int64) (*TweetConfigQuery, error) {
+func (config *DDBDriver) GetFavoritesConfig(userID int64) (*FavoritesItem, error) {
 	result, err := config.db.GetItem(context.TODO(), &dynamodb.GetItemInput{
 		TableName: aws.String(config.paramsTable),
 		Key: map[string]types.AttributeValue{
@@ -227,7 +232,7 @@ func (config *DDBDriver) GetFavoritesConfig(userID int64) (*TweetConfigQuery, er
 		return nil, err
 	}
 
-	item := &TweetConfigQuery{}
+	item := &FavoritesItem{}
 
 	if result.Item == nil {
 		return item, nil
@@ -241,7 +246,7 @@ func (config *DDBDriver) GetFavoritesConfig(userID int64) (*TweetConfigQuery, er
 	return item, nil
 }
 
-func (config *DDBDriver) GetFollowersConfig(userID int64) (*CursoredTweetConfigQuery, error) {
+func (config *DDBDriver) GetFollowersConfig(userID int64) (*FollowersItem, error) {
 	result, err := config.db.GetItem(context.TODO(), &dynamodb.GetItemInput{
 		TableName: aws.String(config.paramsTable),
 		Key: map[string]types.AttributeValue{
@@ -253,7 +258,7 @@ func (config *DDBDriver) GetFollowersConfig(userID int64) (*CursoredTweetConfigQ
 	if err != nil {
 		return nil, err
 	}
-	item := &CursoredTweetConfigQuery{}
+	item := &FollowersItem{}
 
 	if result.Item == nil {
 		return item, nil
@@ -267,7 +272,7 @@ func (config *DDBDriver) GetFollowersConfig(userID int64) (*CursoredTweetConfigQ
 	return item, nil
 }
 
-func (config *DDBDriver) GetFriendsConfig(userID int64) (*CursoredTweetConfigQuery, error) {
+func (config *DDBDriver) GetFriendsConfig(userID int64) (*FriendsItem, error) {
 	result, err := config.db.GetItem(context.TODO(), &dynamodb.GetItemInput{
 		TableName: aws.String(config.paramsTable),
 		Key: map[string]types.AttributeValue{
@@ -280,7 +285,7 @@ func (config *DDBDriver) GetFriendsConfig(userID int64) (*CursoredTweetConfigQue
 		return nil, err
 	}
 
-	item := &CursoredTweetConfigQuery{}
+	item := &FriendsItem{}
 
 	if result.Item == nil {
 		return item, nil
@@ -331,7 +336,7 @@ func (config *DDBDriver) GetRunnerUsers(runnerUsers *RunnerItem) ([]*RunnerItem,
 	return results, nil
 }
 
-func (config *DDBDriver) GetTimelineConfig(userID int64) (*TweetConfigQuery, error) {
+func (config *DDBDriver) GetTimelineConfig(userID int64) (*TweetsItem, error) {
 	result, err := config.db.GetItem(context.TODO(), &dynamodb.GetItemInput{
 		TableName: aws.String(config.paramsTable),
 		Key: map[string]types.AttributeValue{
@@ -344,7 +349,7 @@ func (config *DDBDriver) GetTimelineConfig(userID int64) (*TweetConfigQuery, err
 		return nil, err
 	}
 
-	item := &TweetConfigQuery{}
+	item := &TweetsItem{}
 
 	if result.Item == nil {
 		return item, nil

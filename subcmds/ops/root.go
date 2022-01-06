@@ -3,6 +3,7 @@ package ops
 import (
 	"github.com/rmrfslashbin/tndx/subcmds/ops/crawler"
 	"github.com/rmrfslashbin/tndx/subcmds/ops/dashboard"
+	"github.com/rmrfslashbin/tndx/subcmds/ops/ddb"
 	"github.com/rmrfslashbin/tndx/subcmds/ops/events"
 	"github.com/rmrfslashbin/tndx/subcmds/ops/queue"
 	"github.com/rmrfslashbin/tndx/subcmds/ops/runner"
@@ -26,5 +27,6 @@ func init() {
 		runner.RootCmd,
 		queue.RootCmd,
 		tweets.RootCmd,
+		ddb.RootCmd,
 	)
 }
