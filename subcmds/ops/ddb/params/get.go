@@ -2,10 +2,11 @@ package params
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"text/tabwriter"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/rmrfslashbin/tndx/pkg/database"
 	"github.com/rmrfslashbin/tndx/pkg/service"
 	"github.com/sirupsen/logrus"
@@ -109,18 +110,16 @@ func runDDBPramsGet() error {
 			os.Stdout.Write(data)
 		}
 	} else {
-		spew.Dump(outputs)
-		/*
-			w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.Debug)
-			fmt.Fprintln(w, "Event\tDescription\tRate\tStatus")
-
-			for _, rule := range rules.Rules {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", *rule.Name, *rule.Description, *rule.ScheduleExpression, rule.State)
-			}
-
-			w.Flush()
-			fmt.Println()
-		*/
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', tabwriter.Debug)
+		fmt.Fprintln(w, "UserID\tDomain\tLastUpdate\tSinceID\tMaxID")
+		fmt.Fprintf(w, "%d\tfavorites\t%s\t%d\t%d\n", flags.userid, outputs.Favorites.LastUpdateTimestamp.Format(time.RFC3339), outputs.Favorites.SinceID, outputs.Favorites.MaxID)
+		fmt.Fprintf(w, "%d\ttimeline\t%s\t%d\t%d\n", flags.userid, outputs.Timeline.LastUpdateTimestamp.Format(time.RFC3339), outputs.Timeline.SinceID, outputs.Timeline.MaxID)
+		fmt.Fprintf(w, "\n")
+		fmt.Fprintln(w, "UserID\tDomain\tLastUpdate\tPreviousCursor\tNextCursor")
+		fmt.Fprintf(w, "%d\tfollowers\t%s\t%d\t%d\n", flags.userid, outputs.Followers.LastUpdateTimestamp.Format(time.RFC3339), outputs.Followers.PreviousCursor, outputs.Followers.NextCursor)
+		fmt.Fprintf(w, "%d\tfriends\t%s\t%d\t%d\n", flags.userid, outputs.Friends.LastUpdateTimestamp.Format(time.RFC3339), outputs.Friends.PreviousCursor, outputs.Friends.NextCursor)
+		w.Flush()
+		fmt.Println()
 	}
 
 	return nil
