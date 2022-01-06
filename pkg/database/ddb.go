@@ -219,6 +219,75 @@ func (config *DDBDriver) GetDriverName() string {
 	return config.driverName
 }
 
+func (config *DDBDriver) GetFavorites(userID int64) ([]*UserToTweetLink, error) {
+	input := &dynamodb.QueryInput{
+		TableName:              aws.String(config.favoritesTable),
+		KeyConditionExpression: aws.String("UserID = :userID"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":userID": &types.AttributeValueMemberN{Value: strconv.FormatInt(userID, 10)},
+		},
+	}
+	result, err := config.db.Query(context.TODO(), input)
+	if err != nil {
+		config.log.WithFields(logrus.Fields{
+			"error": err,
+			"input": input,
+		}).Error("Error querying user/favorites")
+		return nil, err
+	}
+
+	results := []*UserToTweetLink{}
+	attributevalue.UnmarshalListOfMaps(result.Items, &results)
+
+	return results, nil
+}
+
+func (config *DDBDriver) GetFollowers(userID int64) ([]*UserToFollowerLink, error) {
+	input := &dynamodb.QueryInput{
+		TableName:              aws.String(config.followersTable),
+		KeyConditionExpression: aws.String("UserID = :userID"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":userID": &types.AttributeValueMemberN{Value: strconv.FormatInt(userID, 10)},
+		},
+	}
+	result, err := config.db.Query(context.TODO(), input)
+	if err != nil {
+		config.log.WithFields(logrus.Fields{
+			"error": err,
+			"input": input,
+		}).Error("Error querying user/followers")
+		return nil, err
+	}
+
+	results := []*UserToFollowerLink{}
+	attributevalue.UnmarshalListOfMaps(result.Items, &results)
+
+	return results, nil
+}
+
+func (config *DDBDriver) GetFriends(userID int64) ([]*UserToFriendLink, error) {
+	input := &dynamodb.QueryInput{
+		TableName:              aws.String(config.friendsTable),
+		KeyConditionExpression: aws.String("UserID = :userID"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":userID": &types.AttributeValueMemberN{Value: strconv.FormatInt(userID, 10)},
+		},
+	}
+	result, err := config.db.Query(context.TODO(), input)
+	if err != nil {
+		config.log.WithFields(logrus.Fields{
+			"error": err,
+			"input": input,
+		}).Error("Error querying user/friends")
+		return nil, err
+	}
+
+	results := []*UserToFriendLink{}
+	attributevalue.UnmarshalListOfMaps(result.Items, &results)
+
+	return results, nil
+}
+
 func (config *DDBDriver) GetFavoritesConfig(userID int64) (*FavoritesItem, error) {
 	result, err := config.db.GetItem(context.TODO(), &dynamodb.GetItemInput{
 		TableName: aws.String(config.paramsTable),
