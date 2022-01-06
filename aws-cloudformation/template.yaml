@@ -77,6 +77,15 @@ Resources:
           KeyType: HASH
         - AttributeName: TweetID
           KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: !Sub "${ParamDDBTablePrefix}favorites-gsi-tweetid"
+          KeySchema:
+            - AttributeName: TweetID
+              KeyType: HASH
+            - AttributeName: UserID
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
       Tags:
@@ -102,6 +111,15 @@ Resources:
           KeyType: HASH
         - AttributeName: FollowerID
           KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: !Sub "${ParamDDBTablePrefix}followers-gsi-followerid"
+          KeySchema:
+            - AttributeName: FollowerID
+              KeyType: HASH
+            - AttributeName: UserID
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
       Tags:
@@ -127,6 +145,15 @@ Resources:
           KeyType: HASH
         - AttributeName: FriendID
           KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: !Sub "${ParamDDBTablePrefix}friends-gsi-friendid"
+          KeySchema:
+            - AttributeName: FriendID
+              KeyType: HASH
+            - AttributeName: UserID
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
       Tags:
