@@ -20,18 +20,21 @@ type Bits uint8
 type DDBOption func(config *DDBDriver)
 
 type DDBDriver struct {
-	log            *logrus.Logger
-	driverName     string
-	tablePrefix    string
-	region         string
-	profile        string
-	favoritesTable string
-	friendsTable   string
-	followersTable string
-	runnerTable    string
-	mediaTable     string
-	paramsTable    string
-	db             *dynamodb.Client
+	log                         *logrus.Logger
+	driverName                  string
+	tablePrefix                 string
+	region                      string
+	profile                     string
+	favoritesTable              string
+	favoritesTableGSITweetid    string
+	friendsTable                string
+	friendsTableGSIFriendid     string
+	followersTable              string
+	followersTableGSIFollowerid string
+	runnerTable                 string
+	mediaTable                  string
+	paramsTable                 string
+	db                          *dynamodb.Client
 }
 type TweetConfigQuery struct {
 	UserID     int64
@@ -177,8 +180,11 @@ func SetDDBTablePrefix(tablePrefix string) func(*DDBDriver) {
 	return func(config *DDBDriver) {
 		config.tablePrefix = tablePrefix
 		config.favoritesTable = tablePrefix + "favorites"
+		config.favoritesTableGSITweetid = tablePrefix + "favorites-gsi-tweetid"
 		config.friendsTable = tablePrefix + "friends"
+		config.friendsTableGSIFriendid = tablePrefix + "friends-gsi-friendid"
 		config.followersTable = tablePrefix + "followers"
+		config.followersTableGSIFollowerid = tablePrefix + "followers-gsi-followerid"
 		config.runnerTable = tablePrefix + "runners"
 		config.mediaTable = tablePrefix + "media"
 		config.paramsTable = tablePrefix + "parameters"
@@ -219,7 +225,31 @@ func (config *DDBDriver) GetDriverName() string {
 	return config.driverName
 }
 
-func (config *DDBDriver) GetFavorites(userID int64) ([]*UserToTweetLink, error) {
+func (config *DDBDriver) GetFavoritesByTweetId(tweetID int64) ([]*UserToTweetLink, error) {
+	input := &dynamodb.QueryInput{
+		TableName:              aws.String(config.favoritesTable),
+		IndexName:              aws.String(config.favoritesTableGSITweetid),
+		KeyConditionExpression: aws.String("TweetID = :TweetID"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":TweetID": &types.AttributeValueMemberN{Value: strconv.FormatInt(tweetID, 10)},
+		},
+	}
+	result, err := config.db.Query(context.TODO(), input)
+	if err != nil {
+		config.log.WithFields(logrus.Fields{
+			"error": err,
+			"input": input,
+		}).Error("Error querying favorite/users")
+		return nil, err
+	}
+
+	results := []*UserToTweetLink{}
+	attributevalue.UnmarshalListOfMaps(result.Items, &results)
+
+	return results, nil
+}
+
+func (config *DDBDriver) GetFavoritesByUserId(userID int64) ([]*UserToTweetLink, error) {
 	input := &dynamodb.QueryInput{
 		TableName:              aws.String(config.favoritesTable),
 		KeyConditionExpression: aws.String("UserID = :userID"),
@@ -242,7 +272,31 @@ func (config *DDBDriver) GetFavorites(userID int64) ([]*UserToTweetLink, error) 
 	return results, nil
 }
 
-func (config *DDBDriver) GetFollowers(userID int64) ([]*UserToFollowerLink, error) {
+func (config *DDBDriver) GetFollowersByFollowId(followID int64) ([]*UserToFollowerLink, error) {
+	input := &dynamodb.QueryInput{
+		TableName:              aws.String(config.followersTable),
+		IndexName:              aws.String(config.followersTableGSIFollowerid),
+		KeyConditionExpression: aws.String("FollowerID = :FollowerID"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":FollowerID": &types.AttributeValueMemberN{Value: strconv.FormatInt(followID, 10)},
+		},
+	}
+	result, err := config.db.Query(context.TODO(), input)
+	if err != nil {
+		config.log.WithFields(logrus.Fields{
+			"error": err,
+			"input": input,
+		}).Error("Error querying friend/users")
+		return nil, err
+	}
+
+	results := []*UserToFollowerLink{}
+	attributevalue.UnmarshalListOfMaps(result.Items, &results)
+
+	return results, nil
+}
+
+func (config *DDBDriver) GetFollowersByUserId(userID int64) ([]*UserToFollowerLink, error) {
 	input := &dynamodb.QueryInput{
 		TableName:              aws.String(config.followersTable),
 		KeyConditionExpression: aws.String("UserID = :userID"),
@@ -265,7 +319,31 @@ func (config *DDBDriver) GetFollowers(userID int64) ([]*UserToFollowerLink, erro
 	return results, nil
 }
 
-func (config *DDBDriver) GetFriends(userID int64) ([]*UserToFriendLink, error) {
+func (config *DDBDriver) GetFriendsByFriendId(friendID int64) ([]*UserToFriendLink, error) {
+	input := &dynamodb.QueryInput{
+		TableName:              aws.String(config.friendsTable),
+		IndexName:              aws.String(config.friendsTableGSIFriendid),
+		KeyConditionExpression: aws.String("FriendID = :FriendID"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":FriendID": &types.AttributeValueMemberN{Value: strconv.FormatInt(friendID, 10)},
+		},
+	}
+	result, err := config.db.Query(context.TODO(), input)
+	if err != nil {
+		config.log.WithFields(logrus.Fields{
+			"error": err,
+			"input": input,
+		}).Error("Error querying friend/users")
+		return nil, err
+	}
+
+	results := []*UserToFriendLink{}
+	attributevalue.UnmarshalListOfMaps(result.Items, &results)
+
+	return results, nil
+}
+
+func (config *DDBDriver) GetFriendsByUserId(userID int64) ([]*UserToFriendLink, error) {
 	input := &dynamodb.QueryInput{
 		TableName:              aws.String(config.friendsTable),
 		KeyConditionExpression: aws.String("UserID = :userID"),

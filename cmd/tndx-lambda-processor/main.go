@@ -317,12 +317,21 @@ func favorites(userid int64, bootstrap *queue.Bootstrap) error {
 		},
 	)
 	if err != nil {
-		log.WithFields(logrus.Fields{
-			"action":         "favorites",
-			"responseCode":   resp.StatusCode,
-			"responseStatus": resp.Status,
-		}).Error("error getting user's favorites")
-		return err
+		if resp.StatusCode == 429 {
+			log.WithFields(logrus.Fields{
+				"action":         "favorites::GetUserFavorites",
+				"error":          err,
+				"responsestatus": resp.Header,
+			}).Error("rate limit exceeded getting user's favorites")
+			return err
+		} else {
+			log.WithFields(logrus.Fields{
+				"action":         "favorites",
+				"responseCode":   resp.StatusCode,
+				"responseStatus": resp.Status,
+			}).Error("error getting user's favorites")
+			return err
+		}
 	}
 
 	// upperID and lowerID are used to keep track of the max and min tweet IDs
@@ -490,11 +499,7 @@ func followers(userid int64) error {
 				"error":          err,
 				"responsestatus": resp.Header,
 			}).Error("rate limit exceeded getting user's followers")
-			log.WithFields(logrus.Fields{
-				"action": "followers::GetUserFollowers",
-				"error":  err,
-			}).Error("rate limit exceeded getting user's followers")
-			return nil
+			return err
 		} else {
 			log.WithFields(logrus.Fields{
 				"action": "followers::GetUserFollowers",
@@ -592,7 +597,7 @@ func friends(userid int64) error {
 				"error":          err,
 				"responsestatus": resp.Header,
 			}).Error("rate limit exceeded getting user's friends")
-			return nil
+			return err
 		} else {
 			log.WithFields(logrus.Fields{
 				"action":   "friends::GetUserFriends",
@@ -657,13 +662,24 @@ func friends(userid int64) error {
 func getTweet(tweetId int64, bootstrap *queue.Bootstrap) error {
 	tweets, resp, err := svc.twitterClient.LookupTweets([]int64{tweetId})
 	if err != nil {
-		log.WithFields(logrus.Fields{
-			"action":         "timeline::GetTimelineConfig",
-			"responseCode":   resp.StatusCode,
-			"responseStatus": resp.Status,
-			"error":          err.Error(),
-		}).Error("error getting timeline config")
-		return err
+		if resp.StatusCode == 429 {
+			log.WithFields(logrus.Fields{
+				"action":         "getTweet::LookupTweets",
+				"error":          err,
+				"responsestatus": resp.Header,
+				"tweetid":        tweetId,
+			}).Error("rate limit exceeded getting tweet")
+			return err
+		} else {
+			log.WithFields(logrus.Fields{
+				"action":         "getTweet::LookupTweets",
+				"responseCode":   resp.StatusCode,
+				"responseStatus": resp.Status,
+				"tweetid":        tweetId,
+				"error":          err.Error(),
+			}).Error("error getting tweet")
+			return err
+		}
 	}
 
 	// Loop through all the tweets.
@@ -675,9 +691,10 @@ func getTweet(tweetId int64, bootstrap *queue.Bootstrap) error {
 		if data, err := json.Marshal(tweets[t]); err == nil {
 			if opt, err := svc.kinesis.PutRecord(data); err != nil {
 				log.WithFields(logrus.Fields{
+					"action":  "getTweet::kinesis.PutRecord",
 					"error":   err,
 					"tweetId": tweets[t].ID,
-				}).Fatal("failed putting favorite tweet into kinesis")
+				}).Fatal("failed putting tweet into kinesis")
 			} else {
 				log.WithFields(logrus.Fields{
 					"tweetId":  tweets[t].ID,
@@ -696,9 +713,10 @@ func getTweet(tweetId int64, bootstrap *queue.Bootstrap) error {
 				},
 			}); err != nil {
 				logrus.WithFields(logrus.Fields{
-					"action":  "timeline::queue::SendRunnerMessage",
-					"error":   err.Error(),
-					"tweetId": tweets[t].ID,
+					"action":            "getTweet::RetweetedStatus::queue.SendRunnerMessage",
+					"error":             err.Error(),
+					"tweetId":           tweets[t].ID,
+					"retweetedStatusId": tweets[t].RetweetedStatus.IDStr,
 				}).Error("error sending message to queue")
 			}
 		}
@@ -713,9 +731,10 @@ func getTweet(tweetId int64, bootstrap *queue.Bootstrap) error {
 				},
 			}); err != nil {
 				logrus.WithFields(logrus.Fields{
-					"action":  "getTweet::queue::SendRunnerMessage",
-					"error":   err.Error(),
-					"tweetId": tweets[t].ID,
+					"action":         "getTweet::QuotedStatusID::queue::SendRunnerMessage",
+					"error":          err.Error(),
+					"tweetId":        tweets[t].ID,
+					"quotedStatusID": tweets[t].QuotedStatusIDStr,
 				}).Error("error sending message to queue")
 			}
 		}
@@ -739,7 +758,7 @@ func getTweet(tweetId int64, bootstrap *queue.Bootstrap) error {
 					},
 				}); err != nil {
 					logrus.WithFields(logrus.Fields{
-						"action":  "timeline::queue::SendMessage",
+						"action":  "getTweet::entities::queue.SendMessage",
 						"error":   err.Error(),
 						"userid":  tweets[t].User.ID,
 						"tweetId": tweets[t].ID,
@@ -782,12 +801,25 @@ func timeline(userid int64, bootstrap *queue.Bootstrap) error {
 		},
 	)
 	if err != nil {
-		log.WithFields(logrus.Fields{
-			"action":         "timeline::GetUserTimeline",
-			"responseCode":   resp.StatusCode,
-			"responseStatus": resp.Status,
-		}).Error("error getting user's timeline")
-		return err
+		if resp.StatusCode == 429 {
+			log.WithFields(logrus.Fields{
+				"action":         "followers::GetUserFollowers",
+				"error":          err,
+				"responsestatus": resp.Header,
+			}).Error("rate limit exceeded getting user's followers")
+			log.WithFields(logrus.Fields{
+				"action": "followers::GetUserFollowers",
+				"error":  err,
+			}).Error("rate limit exceeded getting user's followers")
+			return nil
+		} else {
+			log.WithFields(logrus.Fields{
+				"action":         "timeline::GetUserTimeline",
+				"responseCode":   resp.StatusCode,
+				"responseStatus": resp.Status,
+			}).Error("error getting user's timeline")
+			return err
+		}
 	}
 
 	// upperID and lowerID are used to keep track of the max and min tweet IDs
@@ -919,14 +951,27 @@ func timeline(userid int64, bootstrap *queue.Bootstrap) error {
 }
 
 func user(userid int64) error {
-	user, _, err := svc.twitterClient.GetUser(&service.QueryParams{UserID: userid})
+	user, resp, err := svc.twitterClient.GetUser(&service.QueryParams{UserID: userid})
 	if err != nil {
-		log.WithFields(logrus.Fields{
-			"action": "user::GetUser",
-			"userid": userid,
-			"error":  err.Error(),
-		}).Error("error getting user.")
-		return err
+		if resp.StatusCode == 429 {
+			log.WithFields(logrus.Fields{
+				"action":         "followers::GetUserFollowers",
+				"error":          err,
+				"responsestatus": resp.Header,
+			}).Error("rate limit exceeded getting user's followers")
+			log.WithFields(logrus.Fields{
+				"action": "followers::GetUserFollowers",
+				"error":  err,
+			}).Error("rate limit exceeded getting user's followers")
+			return nil
+		} else {
+			log.WithFields(logrus.Fields{
+				"action": "user::GetUser",
+				"userid": userid,
+				"error":  err.Error(),
+			}).Error("error getting user.")
+			return err
+		}
 	}
 
 	log.WithFields(logrus.Fields{
