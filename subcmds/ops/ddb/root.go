@@ -18,6 +18,9 @@ type Flags struct {
 	loglevel   string
 	dotenvPath string
 	userid     int64
+	tweetid    int64
+	friendid   int64
+	followid   int64
 	screenname string
 	json       bool
 	yaml       bool
@@ -42,8 +45,11 @@ var (
 		Use:   "favorites",
 		Short: "fetch favorites for a user",
 		PreRun: func(cmd *cobra.Command, args []string) {
-			if flags.userid == 0 && flags.screenname == "" {
-				log.Fatal("must specify at least one userid or screenname")
+			if flags.tweetid != 0 && (flags.userid != 0 || flags.screenname != "") {
+				log.Fatal("--tweetid and --userid/--screenname are mutually exclusive")
+			}
+			if flags.tweetid == 0 && flags.userid == 0 && flags.screenname == "" {
+				log.Fatal("must specify --tweetid or at least one --userid/--screenname")
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
@@ -59,8 +65,11 @@ var (
 		Use:   "friends",
 		Short: "fetch friends for a user",
 		PreRun: func(cmd *cobra.Command, args []string) {
-			if flags.userid == 0 && flags.screenname == "" {
-				log.Fatal("must specify at least one userid or screenname")
+			if flags.friendid != 0 && (flags.userid != 0 || flags.screenname != "") {
+				log.Fatal("--friendid and --userid/--screenname are mutually exclusive")
+			}
+			if flags.friendid == 0 && flags.userid == 0 && flags.screenname == "" {
+				log.Fatal("must specify --friendid or at least one --userid/--screenname")
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
@@ -76,8 +85,11 @@ var (
 		Use:   "followers",
 		Short: "fetch followers for a user",
 		PreRun: func(cmd *cobra.Command, args []string) {
-			if flags.userid == 0 && flags.screenname == "" {
-				log.Fatal("must specify at least one userid or screenname")
+			if flags.followid != 0 && (flags.userid != 0 || flags.screenname != "") {
+				log.Fatal("--followid and --userid/--screenname are mutually exclusive")
+			}
+			if flags.followid == 0 && flags.userid == 0 && flags.screenname == "" {
+				log.Fatal("must specify --followid or at least one --userid/--screenname")
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
@@ -103,16 +115,19 @@ func init() {
 
 	favoriteCmd.Flags().StringVarP(&flags.screenname, "screenname", "s", "", "screenname of user to fetch favorites for")
 	favoriteCmd.Flags().Int64VarP(&flags.userid, "userid", "u", 0, "userid of user to fetch favorites for")
+	favoriteCmd.Flags().Int64VarP(&flags.tweetid, "tweetid", "t", 0, "tweetid to fetch favorites for")
 	favoriteCmd.Flags().BoolVarP(&flags.json, "json", "j", false, "output in json format")
 	favoriteCmd.Flags().BoolVarP(&flags.yaml, "yaml", "y", false, "output in yaml format")
 
-	followersCmd.Flags().StringVarP(&flags.screenname, "screenname", "s", "", "screenname of user to fetch favorites for")
-	followersCmd.Flags().Int64VarP(&flags.userid, "userid", "u", 0, "userid of user to fetch favorites for")
+	followersCmd.Flags().StringVarP(&flags.screenname, "screenname", "s", "", "screenname of user to fetch followers for")
+	followersCmd.Flags().Int64VarP(&flags.userid, "userid", "u", 0, "userid of user to fetch followers for")
+	followersCmd.Flags().Int64VarP(&flags.followid, "followid", "f", 0, "followid to fetch followers for")
 	followersCmd.Flags().BoolVarP(&flags.json, "json", "j", false, "output in json format")
 	followersCmd.Flags().BoolVarP(&flags.yaml, "yaml", "y", false, "output in yaml format")
 
-	friendsCmd.Flags().StringVarP(&flags.screenname, "screenname", "s", "", "screenname of user to fetch favorites for")
-	friendsCmd.Flags().Int64VarP(&flags.userid, "userid", "u", 0, "userid of user to fetch favorites for")
+	friendsCmd.Flags().StringVarP(&flags.screenname, "screenname", "s", "", "screenname of user to fetch friends for")
+	friendsCmd.Flags().Int64VarP(&flags.userid, "userid", "u", 0, "userid of user to fetch friends for")
+	friendsCmd.Flags().Int64VarP(&flags.friendid, "friendid", "f", 0, "friendid to fetch frineds  for")
 	friendsCmd.Flags().BoolVarP(&flags.json, "json", "j", false, "output in json format")
 	friendsCmd.Flags().BoolVarP(&flags.yaml, "yaml", "y", false, "output in yaml format")
 
