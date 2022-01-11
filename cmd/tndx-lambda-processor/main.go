@@ -685,13 +685,13 @@ func getTweet(tweetId int64, bootstrap *queue.Bootstrap) error {
 	// Loop through all the tweets.
 	for t := range tweets {
 		log.WithFields(logrus.Fields{
-			"action": "getTweet::LookupTweets",
-			"tweet":  tweets[t],
+			"action":  "getTweet::LookupTweets",
+			"tweetId": tweets[t],
 		}).Info("base tweet")
 		if data, err := json.Marshal(tweets[t]); err == nil {
 			if opt, err := svc.kinesis.PutRecord(data); err != nil {
 				log.WithFields(logrus.Fields{
-					"action":  "getTweet::kinesis.PutRecord",
+					"action":  "getTweet::svc.kinesis.PutRecord",
 					"error":   err,
 					"tweetId": tweets[t].ID,
 				}).Fatal("failed putting tweet into kinesis")
@@ -713,10 +713,9 @@ func getTweet(tweetId int64, bootstrap *queue.Bootstrap) error {
 				},
 			}); err != nil {
 				logrus.WithFields(logrus.Fields{
-					"action":            "getTweet::RetweetedStatus::queue.SendRunnerMessage",
-					"error":             err.Error(),
-					"tweetId":           tweets[t].ID,
-					"retweetedStatusId": tweets[t].RetweetedStatus.IDStr,
+					"action":  "getTweet::svc.queue.SendRunnerMessage::get_tweet::RetweetedStatus",
+					"error":   err.Error(),
+					"tweetId": tweets[t].ID,
 				}).Error("error sending message to queue")
 			}
 		}
@@ -731,10 +730,9 @@ func getTweet(tweetId int64, bootstrap *queue.Bootstrap) error {
 				},
 			}); err != nil {
 				logrus.WithFields(logrus.Fields{
-					"action":         "getTweet::QuotedStatusID::queue::SendRunnerMessage",
-					"error":          err.Error(),
-					"tweetId":        tweets[t].ID,
-					"quotedStatusID": tweets[t].QuotedStatusIDStr,
+					"action":  "getTweet::svc.queue.SendRunnerMessage::get_tweet::QuotedStatusIDStr",
+					"error":   err.Error(),
+					"tweetId": tweets[t].ID,
 				}).Error("error sending message to queue")
 			}
 		}
@@ -758,7 +756,7 @@ func getTweet(tweetId int64, bootstrap *queue.Bootstrap) error {
 					},
 				}); err != nil {
 					logrus.WithFields(logrus.Fields{
-						"action":  "getTweet::entities::queue.SendMessage",
+						"action":  "getTweet::svc.queue.SendRunnerMessage::entities",
 						"error":   err.Error(),
 						"userid":  tweets[t].User.ID,
 						"tweetId": tweets[t].ID,

@@ -14,13 +14,13 @@ func RunTweetsProcess() error {
 				TweetID: tweetid,
 			},
 		}); err != nil {
-			logrus.WithFields(logrus.Fields{
-				"action":  "timeline::queue::SendRunnerMessage",
+			log.WithFields(logrus.Fields{
+				"action":  "RunTweetsProcess::queue::SendRunnerMessage",
 				"error":   err.Error(),
 				"tweetId": tweetid,
 			}).Error("error sending message to queue")
 		} else {
-			logrus.WithFields(logrus.Fields{
+			log.WithFields(logrus.Fields{
 				"action":   "RunTweetsProcess::queue::SendRunnerMessage",
 				"function": bootstrap.Function,
 				"tweetId":  tweetid,
