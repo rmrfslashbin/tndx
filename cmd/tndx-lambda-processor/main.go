@@ -664,18 +664,18 @@ func getTweet(tweetId int64, bootstrap *queue.Bootstrap) error {
 	if err != nil {
 		if resp.StatusCode == 429 {
 			log.WithFields(logrus.Fields{
-				"action":         "getTweet::LookupTweets",
+				"action":         "getTweet::svc.twitterClient.LookupTweets",
 				"error":          err,
 				"responsestatus": resp.Header,
-				"tweetid":        tweetId,
+				"tweetId":        tweetId,
 			}).Error("rate limit exceeded getting tweet")
 			return err
 		} else {
 			log.WithFields(logrus.Fields{
-				"action":         "getTweet::LookupTweets",
+				"action":         "getTweet::svc.twitterClient.LookupTweets",
 				"responseCode":   resp.StatusCode,
 				"responseStatus": resp.Status,
-				"tweetid":        tweetId,
+				"tweetId":        tweetId,
 				"error":          err.Error(),
 			}).Error("error getting tweet")
 			return err
