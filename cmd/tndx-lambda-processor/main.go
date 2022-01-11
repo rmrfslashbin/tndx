@@ -658,10 +658,11 @@ func getTweet(tweetId int64, bootstrap *queue.Bootstrap) error {
 	tweets, resp, err := svc.twitterClient.LookupTweets([]int64{tweetId})
 	if err != nil {
 		log.WithFields(logrus.Fields{
-			"action":         "timeline::GetTimelineConfig",
+			"action":         "getTweet::LookupTweets",
 			"responseCode":   resp.StatusCode,
 			"responseStatus": resp.Status,
 			"error":          err.Error(),
+			"tweetId":        tweetId,
 		}).Error("error getting timeline config")
 		return err
 	}
@@ -669,12 +670,13 @@ func getTweet(tweetId int64, bootstrap *queue.Bootstrap) error {
 	// Loop through all the tweets.
 	for t := range tweets {
 		log.WithFields(logrus.Fields{
-			"action": "getTweet::LookupTweets",
-			"tweet":  tweets[t],
+			"action":  "getTweet::LookupTweets",
+			"tweetId": tweets[t],
 		}).Info("base tweet")
 		if data, err := json.Marshal(tweets[t]); err == nil {
 			if opt, err := svc.kinesis.PutRecord(data); err != nil {
 				log.WithFields(logrus.Fields{
+					"action":  "getTweet::svc.kinesis.PutRecord",
 					"error":   err,
 					"tweetId": tweets[t].ID,
 				}).Fatal("failed putting favorite tweet into kinesis")
@@ -696,7 +698,7 @@ func getTweet(tweetId int64, bootstrap *queue.Bootstrap) error {
 				},
 			}); err != nil {
 				logrus.WithFields(logrus.Fields{
-					"action":  "timeline::queue::SendRunnerMessage",
+					"action":  "getTweet::svc.queue.SendRunnerMessage::get_tweet::RetweetedStatus",
 					"error":   err.Error(),
 					"tweetId": tweets[t].ID,
 				}).Error("error sending message to queue")
@@ -713,7 +715,7 @@ func getTweet(tweetId int64, bootstrap *queue.Bootstrap) error {
 				},
 			}); err != nil {
 				logrus.WithFields(logrus.Fields{
-					"action":  "getTweet::queue::SendRunnerMessage",
+					"action":  "getTweet::svc.queue.SendRunnerMessage::get_tweet::QuotedStatusIDStr",
 					"error":   err.Error(),
 					"tweetId": tweets[t].ID,
 				}).Error("error sending message to queue")
@@ -739,7 +741,7 @@ func getTweet(tweetId int64, bootstrap *queue.Bootstrap) error {
 					},
 				}); err != nil {
 					logrus.WithFields(logrus.Fields{
-						"action":  "timeline::queue::SendMessage",
+						"action":  "getTweet::svc.queue.SendRunnerMessage::entities",
 						"error":   err.Error(),
 						"userid":  tweets[t].User.ID,
 						"tweetId": tweets[t].ID,
