@@ -47,12 +47,19 @@ func (c *Config) GetUserFavorites(queryParams *QueryParams) ([]twitter.Tweet, *h
 		MaxID:      queryParams.MaxID,
 		TweetMode:  "extended",
 	})
+	if err != nil {
+		return nil, resp, err
+	}
 	for tweet := range tweets {
 		tweets[tweet].CreatedAt, _ = FixTwitterTime(tweets[tweet].CreatedAt)
 		tweets[tweet].User.CreatedAt, _ = FixTwitterTime(tweets[tweet].User.CreatedAt)
 		if tweets[tweet].RetweetedStatus != nil {
 			tweets[tweet].RetweetedStatus.CreatedAt, _ = FixTwitterTime(tweets[tweet].RetweetedStatus.CreatedAt)
 			tweets[tweet].RetweetedStatus.User.CreatedAt, _ = FixTwitterTime(tweets[tweet].RetweetedStatus.User.CreatedAt)
+		}
+		if tweets[tweet].QuotedStatus != nil {
+			tweets[tweet].QuotedStatus.CreatedAt, _ = FixTwitterTime(tweets[tweet].QuotedStatus.CreatedAt)
+			tweets[tweet].QuotedStatus.User.CreatedAt, _ = FixTwitterTime(tweets[tweet].QuotedStatus.User.CreatedAt)
 		}
 	}
 
@@ -98,6 +105,9 @@ func (c *Config) GetUserTimeline(queryParams *QueryParams) ([]twitter.Tweet, *ht
 		MaxID:      queryParams.MaxID,
 		TweetMode:  "extended",
 	})
+	if err != nil {
+		return nil, resp, err
+	}
 	for tweet := range tweets {
 		tweets[tweet].CreatedAt, _ = FixTwitterTime(tweets[tweet].CreatedAt)
 		tweets[tweet].User.CreatedAt, _ = FixTwitterTime(tweets[tweet].User.CreatedAt)
@@ -105,14 +115,35 @@ func (c *Config) GetUserTimeline(queryParams *QueryParams) ([]twitter.Tweet, *ht
 			tweets[tweet].RetweetedStatus.CreatedAt, _ = FixTwitterTime(tweets[tweet].RetweetedStatus.CreatedAt)
 			tweets[tweet].RetweetedStatus.User.CreatedAt, _ = FixTwitterTime(tweets[tweet].RetweetedStatus.User.CreatedAt)
 		}
+		if tweets[tweet].QuotedStatus != nil {
+			tweets[tweet].QuotedStatus.CreatedAt, _ = FixTwitterTime(tweets[tweet].QuotedStatus.CreatedAt)
+			tweets[tweet].QuotedStatus.User.CreatedAt, _ = FixTwitterTime(tweets[tweet].QuotedStatus.User.CreatedAt)
+		}
 	}
 	return tweets, resp, err
 }
 
 func (c *Config) LookupTweets(ids []int64) ([]twitter.Tweet, *http.Response, error) {
-	return c.client.Statuses.Lookup(ids, &twitter.StatusLookupParams{
+	tweets, resp, err := c.client.Statuses.Lookup(ids, &twitter.StatusLookupParams{
 		TweetMode: "extended",
 	})
+	if err != nil {
+		return nil, resp, err
+	}
+	for tweet := range tweets {
+		tweets[tweet].CreatedAt, _ = FixTwitterTime(tweets[tweet].CreatedAt)
+		tweets[tweet].User.CreatedAt, _ = FixTwitterTime(tweets[tweet].User.CreatedAt)
+		if tweets[tweet].RetweetedStatus != nil {
+			tweets[tweet].RetweetedStatus.CreatedAt, _ = FixTwitterTime(tweets[tweet].RetweetedStatus.CreatedAt)
+			tweets[tweet].RetweetedStatus.User.CreatedAt, _ = FixTwitterTime(tweets[tweet].RetweetedStatus.User.CreatedAt)
+		}
+		if tweets[tweet].QuotedStatus != nil {
+			tweets[tweet].QuotedStatus.CreatedAt, _ = FixTwitterTime(tweets[tweet].QuotedStatus.CreatedAt)
+			tweets[tweet].QuotedStatus.User.CreatedAt, _ = FixTwitterTime(tweets[tweet].QuotedStatus.User.CreatedAt)
+		}
+	}
+	return tweets, resp, err
+
 }
 
 func (c *Config) LookupUsers(lookupParams *twitter.UserLookupParams) ([]twitter.User, *http.Response, error) {

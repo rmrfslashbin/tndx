@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path"
 
+	"github.com/dghubble/go-twitter/twitter"
 	"github.com/rmrfslashbin/tndx/pkg/kinesis"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -91,17 +93,30 @@ func run() {
 			}).Fatal("failed decoding base64")
 		}
 
-		if opt, err := k.PutRecord(data); err != nil {
+		//spew.Dump(data)
+
+		tweet := twitter.Tweet{}
+		if err := json.Unmarshal(data, &tweet); err != nil {
 			log.WithFields(logrus.Fields{
-				"file":  fqpn,
 				"error": err,
-			}).Fatal("failed putting record")
-		} else {
-			log.WithFields(logrus.Fields{
-				"recordId": *opt.RecordId,
-			}).Info("put record")
-			count++
+				"file":  fqpn,
+			}).Fatal("failed unmarshalling rawdata json")
 		}
+		fmt.Println(tweet.ID)
+
+		/*
+			if opt, err := k.PutRecord(data); err != nil {
+				log.WithFields(logrus.Fields{
+					"file":  fqpn,
+					"error": err,
+				}).Fatal("failed putting record")
+			} else {
+				log.WithFields(logrus.Fields{
+					"recordId": *opt.RecordId,
+				}).Info("put record")
+				count++
+			}
+		*/
 	}
 	if err := scanner.Err(); err != nil {
 		log.WithFields(logrus.Fields{

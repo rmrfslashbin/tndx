@@ -19,6 +19,12 @@ func RunTweetsProcess() error {
 				"error":   err.Error(),
 				"tweetId": tweetid,
 			}).Error("error sending message to queue")
+		} else {
+			logrus.WithFields(logrus.Fields{
+				"action":   "RunTweetsProcess::queue::SendRunnerMessage",
+				"function": bootstrap.Function,
+				"tweetId":  tweetid,
+			}).Info("message sent to queue")
 		}
 	}
 
