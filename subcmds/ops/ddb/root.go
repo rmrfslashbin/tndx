@@ -7,6 +7,7 @@ import (
 	"github.com/rmrfslashbin/tndx/pkg/database"
 	"github.com/rmrfslashbin/tndx/pkg/service"
 	"github.com/rmrfslashbin/tndx/pkg/ssmparams"
+	"github.com/rmrfslashbin/tndx/subcmds/ops/ddb/exports"
 	"github.com/rmrfslashbin/tndx/subcmds/ops/ddb/params"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -133,6 +134,7 @@ func init() {
 
 	RootCmd.AddCommand(
 		params.RootCmd,
+		exports.RootCmd,
 		favoriteCmd,
 		followersCmd,
 		friendsCmd,
