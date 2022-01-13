@@ -37,7 +37,7 @@ func runStartDDBExport() error {
 	fmt.Printf("Path: s3://%s/%sAWSDynamoDB/%s\n", *opt.ExportDescription.S3Bucket, *opt.ExportDescription.S3Prefix, exportLabel)
 	fmt.Printf("ExportArn: %s\n", *opt.ExportDescription.ExportArn)
 	fmt.Printf("Start time: %s\n", *opt.ExportDescription.StartTime)
-	fmt.Printf("End time: %s\n", *opt.ExportDescription.EndTime)
+	fmt.Printf("End time: %s\n", opt.ExportDescription.EndTime)
 	fmt.Printf("Format: %s\n", opt.ExportDescription.ExportFormat)
 	return nil
 }
