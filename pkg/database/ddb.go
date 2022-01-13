@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -682,4 +683,50 @@ func (config *DDBDriver) PutRunnerFlags(params *RunnerItem) error {
 		return err
 	}
 	return nil
+}
+
+type TableExportRequest struct {
+	ClientToken string
+	//DYNAMODB_JSON or ION
+	ExportFormat string
+	ExportTime   time.Time
+
+	S3Bucket string
+	S3Prefix string
+	TableArn string
+
+	exportFormat types.ExportFormat
+}
+
+func (config *DDBDriver) ExportTable(params *TableExportRequest) (*dynamodb.ExportTableToPointInTimeOutput, error) {
+	switch strings.ToUpper(params.ExportFormat) {
+	case "DYNAMODB_JSON":
+		params.exportFormat = types.ExportFormatDynamodbJson
+	case "ION":
+		params.exportFormat = types.ExportFormatIon
+	default:
+		config.log.Info("defaulting to dynamodb json export format")
+		params.exportFormat = types.ExportFormatDynamodbJson
+	}
+
+	return config.db.ExportTableToPointInTime(
+		context.TODO(),
+		&dynamodb.ExportTableToPointInTimeInput{
+			S3Bucket:       aws.String(params.S3Bucket),
+			TableArn:       aws.String(params.TableArn),
+			ExportFormat:   params.exportFormat,
+			ExportTime:     aws.Time(params.ExportTime),
+			S3Prefix:       aws.String(params.S3Prefix),
+			S3SseAlgorithm: types.S3SseAlgorithmAes256,
+		},
+	)
+}
+
+func (config *DDBDriver) ExportStatus(exportArn string) (*dynamodb.DescribeExportOutput, error) {
+	return config.db.DescribeExport(
+		context.TODO(),
+		&dynamodb.DescribeExportInput{
+			ExportArn: aws.String(exportArn),
+		},
+	)
 }
