@@ -58,6 +58,17 @@ var (
 		},
 	}
 
+	listCmd = &cobra.Command{
+		Use:   "list",
+		Short: "list exports for a ddb table",
+		Run: func(cmd *cobra.Command, args []string) {
+			if err := runListDDBExport(); err != nil {
+				log.Fatal(err)
+				os.Exit(1)
+			}
+		},
+	}
+
 	startCmd = &cobra.Command{
 		Use:   "start",
 		Short: "start a ddb table export to s3",
@@ -103,6 +114,9 @@ func init() {
 	RootCmd.PersistentFlags().StringVarP(&flags.loglevel, "loglevel", "", "info", "[error|warn|info|debug|trace]")
 	RootCmd.PersistentFlags().StringVarP(&flags.dotenvPath, "dotenv", "", "", "dotenv path")
 
+	listCmd.Flags().StringVarP(&flags.tableArn, "table-arn", "", "", "table arn")
+	listCmd.MarkFlagRequired("table-arn")
+
 	startCmd.Flags().StringVarP(&flags.tableArn, "table-arn", "a", "", "arn of the table to export")
 	startCmd.Flags().StringVarP(&flags.s3Bucket, "s3bucket", "b", "", "s3 bucket to export to")
 	startCmd.Flags().StringVarP(&flags.s3Prefix, "s3prefix", "p", "", "s3 prefix to export to")
@@ -114,6 +128,7 @@ func init() {
 	statusCmd.MarkFlagRequired("export-arn")
 
 	RootCmd.AddCommand(
+		listCmd,
 		startCmd,
 		statusCmd,
 	)

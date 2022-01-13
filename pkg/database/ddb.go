@@ -730,3 +730,12 @@ func (config *DDBDriver) ExportStatus(exportArn string) (*dynamodb.DescribeExpor
 		},
 	)
 }
+
+func (config *DDBDriver) ExportList(tableArn string) (*dynamodb.ListExportsOutput, error) {
+	return config.db.ListExports(
+		context.TODO(),
+		&dynamodb.ListExportsInput{
+			TableArn: aws.String(tableArn),
+		},
+	)
+}
